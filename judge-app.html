@@ -413,10 +413,15 @@ function resetCnt(){
 
 function submitScore(){
   if(!confirm(`${athlete.name} — ${cnt}회\n제출하시겠습니까?`))return;
-  sendScore('submit');
+  // 완료 화면에 최종 기록 저장
   document.getElementById('d-score').textContent=cnt;
   document.getElementById('d-name').textContent=athlete.name;
   document.getElementById('d-meta').textContent=`${athlete.event} · C-${pad(athlete.court||0)} · ${athlete.team}`;
+  sendScore('submit');
+  // 뷰어에 0으로 초기화 전송
+  cnt=0;
+  document.getElementById('big-cnt').textContent='0';
+  sendScore('score');
   show('s-done');
 }
 function next(){cnt=0;athlete=null;show('s-setup');}
