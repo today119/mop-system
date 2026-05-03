@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>심판 앱 — 모두의 플레이</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@400;700;900&display=swap');
+:root{--bg:#0a0a0f;--sur2:#1a1a28;--ac:#00e5ff;--ac2:#ff3d71;--gn:#00ff88;--yw:#ffd60a;--tx:#eeeef5;--mu:#4a4a6a;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;}
+.screen{display:none;height:100dvh;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:22px;}
+.screen.show{display:flex;}
+
+/* 설정 */
+#s-setup{background:radial-gradient(ellipse at 50% 0%,#1a1a3a,var(--bg) 70%);}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:.3em;color:var(--mu);}
+.title{font-family:'Bebas Neue',sans-serif;font-size:34px;color:var(--ac);letter-spacing:.08em;}
+.card{width:100%;max-width:340px;background:var(--sur2);border:1.5px solid #252535;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-size:11px;color:var(--mu);}
+.inp{background:#0d0d18;border:1.5px solid #252535;border-radius:10px;padding:10px 13px;font-size:15px;color:var(--tx);font-family:'Noto Sans KR',sans-serif;outline:none;width:100%;transition:border-color .2s;}
+.inp:focus{border-color:var(--ac);}
+.divider{height:1px;background:#1e1e30;}
+.bigbtn{width:100%;padding:14px;border:none;border-radius:13px;font-size:16px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;transition:all .15s;}
+.bigbtn.p{background:var(--ac);color:#000;}
+.bigbtn.s{background:var(--sur2);color:var(--ac);border:1.5px solid var(--ac);}
+.bigbtn:active{transform:scale(.97);}
+.conn-chip{display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:10px;font-size:11px;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.1);}
+.cdot{width:7px;height:7px;border-radius:50%;background:var(--mu);flex-shrink:0;}
+.cdot.live{background:var(--gn);animation:pp 1s ease-in-out infinite alternate;}
+.cdot.con{background:var(--yw);animation:bl .6s ease-in-out infinite alternate;}
+@keyframes pp{from{opacity:.5;}to{opacity:1;}}
+@keyframes bl{from{opacity:.3;}to{opacity:1;}}
+
+/* QR */
+#s-qr{padding:0;}
+#qr-video{width:100%;height:100%;object-fit:cover;display:block;}
+#qr-canvas{display:none;}
+.qr-ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+.qr-frame{width:210px;height:210px;border-radius:20px;border:3px solid var(--ac);box-shadow:0 0 0 9999px rgba(0,0,0,.55);position:relative;}
+.qr-line{position:absolute;left:6px;right:6px;height:2px;background:linear-gradient(90deg,transparent,var(--ac),transparent);animation:scan 2s ease-in-out infinite;}
+@keyframes scan{0%,100%{top:8px;}50%{top:194px;}}
+.qr-hint{margin-top:18px;font-size:12px;color:rgba(255,255,255,.6);background:rgba(0,0,0,.5);padding:6px 14px;border-radius:20px;}
+#qr-back{position:absolute;top:16px;left:16px;background:rgba(0,0,0,.6);border:1.5px solid rgba(255,255,255,.2);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:white;font-size:17px;cursor:pointer;}
+
+/* 선수 확인 */
+#s-confirm{background:radial-gradient(ellipse at 50% 20%,#0a2a3a,var(--bg) 65%);}
+.cbadge{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ac);background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);border-radius:20px;padding:4px 14px;margin-bottom:10px;}
+.ath-card{width:100%;max-width:340px;background:var(--sur2);border:1.5px solid #252535;border-radius:18px;overflow:hidden;margin-bottom:12px;}
+.ath-head{background:linear-gradient(135deg,#0a2030,#0a1520);padding:16px 18px 12px;border-bottom:1px solid #1a2a3a;}
+.ath-entry{font-size:10px;color:var(--ac);letter-spacing:.1em;margin-bottom:2px;}
+.ath-name{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:.05em;line-height:1.1;}
+.ath-team{font-size:12px;color:var(--mu);margin-top:2px;}
+.ath-body{padding:12px 18px;display:flex;flex-direction:column;gap:8px;}
+.ir{display:flex;justify-content:space-between;align-items:center;}
+.ik{font-size:10px;color:var(--mu);}
+.iv{font-size:12px;font-weight:600;}
+.iv.ev{color:var(--yw);font-family:'Bebas Neue',sans-serif;font-size:15px;}
+.iv.ct{color:var(--ac);font-family:'Bebas Neue',sans-serif;font-size:15px;}
+.cbtn-row{display:flex;gap:10px;width:100%;max-width:340px;}
+.cbtn-row .bigbtn{flex:1;padding:13px;}
+
+/* 카운팅 */
+#s-count{gap:0;padding:0;justify-content:flex-start;}
+.count-header{background:#13131e;padding:9px 14px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #1a1a2a;flex-shrink:0;width:100%;}
+.ch-name{font-weight:700;font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ch-meta{font-size:10px;color:var(--mu);}
+.ch-ev{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--yw);}
+.ch-ct{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--ac);margin-left:4px;}
+.ov-pill{display:flex;align-items:center;gap:4px;padding:3px 9px;border-radius:12px;font-size:9px;font-weight:600;}
+.ov-pill.live{background:rgba(0,255,136,.1);color:var(--gn);border:1px solid rgba(0,255,136,.2);}
+.ov-pill.wait{background:rgba(255,214,10,.08);color:var(--yw);border:1px solid rgba(255,214,10,.2);}
+.ov-d{width:5px;height:5px;border-radius:50%;}
+.live .ov-d{background:var(--gn);animation:pp 1s ease-in-out infinite alternate;}
+.wait .ov-d{background:var(--yw);}
+
+.count-disp{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 0 2px;flex-shrink:0;width:100%;}
+.count-num{font-family:'Bebas Neue',sans-serif;font-size:96px;line-height:1;color:var(--tx);transition:transform .05s,color .08s;}
+/* 숫자 팝 애니 제거 — 지연 없이 즉시 표시 */
+.count-num.flash{color:var(--ac);}
+.count-lbl{font-size:9px;letter-spacing:.15em;color:var(--mu);text-transform:uppercase;}
+
+/* 터치존 */
+#tz{
+  flex:1;margin:0 10px;border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;overflow:hidden;position:relative;
+  background:linear-gradient(145deg,#0e1c2c,#091420);
+  border:2px solid #18304a;
+  -webkit-tap-highlight-color:transparent;
+  transition:border-color .08s,background .08s;
+  width:calc(100% - 20px);
+}
+#tz.pressed{border-color:var(--ac);background:linear-gradient(145deg,#0e2c40,#091e30);}
+.tz-icon{font-size:44px;opacity:.16;pointer-events:none;}
+.tz-hint{position:absolute;bottom:12px;font-size:10px;color:var(--mu);letter-spacing:.08em;pointer-events:none;}
+.ripple{position:absolute;border-radius:50%;background:rgba(0,229,255,.25);transform:scale(0);pointer-events:none;animation:rip .45s ease-out forwards;}
+@keyframes rip{to{transform:scale(5);opacity:0;}}
+
+/* 조정 */
+.adj-row{display:flex;gap:8px;padding:7px 10px;flex-shrink:0;width:100%;}
+.adj{flex:1;padding:12px;border:none;border-radius:12px;font-size:22px;font-weight:700;cursor:pointer;font-family:'Bebas Neue',sans-serif;}
+#adj-m{background:#1a1a2a;color:var(--ac2);border:1.5px solid #2a1a2a;}
+#adj-p{background:#1a1a2a;color:var(--gn);border:1.5px solid #1a2a1a;}
+#adj-r{background:#1a1a2a;color:var(--yw);border:1.5px solid #2a2a1a;flex:.7;}
+.adj:active{transform:scale(.93);}
+.sub-area{padding:0 10px 16px;flex-shrink:0;display:flex;gap:8px;width:100%;}
+
+/* 완료 */
+#s-done{background:radial-gradient(ellipse at 50% 30%,#0a3020,var(--bg) 65%);}
+.done-icon{font-size:56px;animation:pop .4s cubic-bezier(.175,.885,.32,1.275);}
+@keyframes pop{from{transform:scale(0);}to{transform:scale(1);}}
+.done-title{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--gn);}
+.done-score{font-family:'Bebas Neue',sans-serif;font-size:84px;line-height:1;}
+.done-btns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:310px;}
+</style>
+</head>
+<body>
+
+<!-- 설정 -->
+<div class="screen show" id="s-setup">
+  <div class="logo">모두의 플레이</div>
+  <div class="title">심판 앱</div>
+  <div class="card">
+    <div class="field">
+      <label>📺 방 코드 (뷰어와 동일)</label>
+      <input class="inp" id="inp-room" type="text" placeholder="예: MOP2024"
+        style="text-transform:uppercase;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.08em;"
+        oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div class="divider"></div>
+    <div class="field"><label>심판 이름</label><input class="inp" id="inp-judge" type="text" placeholder="이름"></div>
+    <div class="field"><label>코트 번호 (1~24)</label><input class="inp" id="inp-court" type="number" placeholder="예: 3" min="1" max="24"></div>
+    <div class="field"><label>선수 이름</label><input class="inp" id="inp-name" type="text" placeholder="선수 이름"></div>
+    <div class="field"><label>소속</label><input class="inp" id="inp-team" type="text" placeholder="학교/팀명"></div>
+    <div class="field"><label>종목</label>
+      <select class="inp" id="inp-event">
+        <option value="SRSS">SRSS — 30초 빨리뛰기</option>
+        <option value="SRSE">SRSE — 3분 빨리뛰기</option>
+        <option value="SRTU">SRTU — 3중 뛰기</option>
+      </select>
+    </div>
+    <div class="conn-chip">
+      <div class="cdot" id="chip-dot"></div>
+      <span id="chip-txt">방 코드 입력 후 시작하세요</span>
+    </div>
+    <button class="bigbtn p" onclick="enterManual()">✓ 시작하기</button>
+    <button class="bigbtn s" onclick="startQR()">📷 QR 스캔</button>
+  </div>
+</div>
+
+<!-- QR -->
+<div class="screen" id="s-qr" style="padding:0;position:relative;">
+  <video id="qr-video" playsinline autoplay muted style="width:100%;height:100%;object-fit:cover;"></video>
+  <canvas id="qr-canvas"></canvas>
+  <div class="qr-ov">
+    <div class="qr-frame"><div class="qr-line"></div></div>
+    <div class="qr-hint">선수 배번 QR코드 스캔</div>
+  </div>
+  <div id="qr-back" onclick="stopQR()">✕</div>
+</div>
+
+<!-- 선수 확인 -->
+<div class="screen" id="s-confirm">
+  <div class="cbadge">선수 확인</div>
+  <div class="ath-card">
+    <div class="ath-head">
+      <div class="ath-entry" id="c-entry">-</div>
+      <div class="ath-name" id="c-name">선수명</div>
+      <div class="ath-team" id="c-team">소속</div>
+    </div>
+    <div class="ath-body">
+      <div class="ir"><span class="ik">종목</span><span class="iv ev" id="c-ev">-</span></div>
+      <div class="ir"><span class="ik">코트</span><span class="iv ct" id="c-court">-</span></div>
+      <div class="ir"><span class="ik">심판</span><span class="iv" id="c-judge">-</span></div>
+    </div>
+  </div>
+  <div class="cbtn-row">
+    <button class="bigbtn s" style="flex:.6" onclick="show('s-setup')">← 다시</button>
+    <button class="bigbtn p" onclick="startCounting()">✓ 시작</button>
+  </div>
+</div>
+
+<!-- 카운팅 -->
+<div class="screen" id="s-count">
+  <div class="count-header">
+    <div style="display:flex;flex-direction:column;flex:1;gap:0;overflow:hidden;">
+      <div class="ch-name" id="h-name">-</div>
+      <div class="ch-meta" id="h-meta">-</div>
+    </div>
+    <span class="ch-ev" id="h-ev">-</span>
+    <span class="ch-ct" id="h-ct">C-01</span>
+    <div class="ov-pill wait" id="ov-pill"><div class="ov-d"></div><span id="ov-txt">대기</span></div>
+  </div>
+  <div class="count-disp">
+    <div class="count-num" id="big-cnt">0</div>
+    <div class="count-lbl">COUNT</div>
+  </div>
+  <div id="tz" style="position:relative;"
+    ontouchstart="onTS(event)" ontouchend="onTE(event)" onmousedown="onMD(event)">
+    <div class="tz-icon">👆</div>
+    <div class="tz-hint">터치하여 카운트</div>
+  </div>
+  <div class="adj-row">
+    <button class="adj" id="adj-m" onclick="adjCnt(-1)">− 1</button>
+    <button class="adj" id="adj-p" onclick="adjCnt(+1)">+ 1</button>
+    <button class="adj" id="adj-r" onclick="resetCnt()">↺</button>
+  </div>
+  <div class="sub-area">
+    <button class="bigbtn s" style="flex:.55;padding:12px;font-size:13px;" onclick="show('s-setup')">취소</button>
+    <button class="bigbtn p" style="padding:12px;" onclick="submitScore()">기록 제출 →</button>
+  </div>
+</div>
+
+<!-- 완료 -->
+<div class="screen" id="s-done">
+  <div class="done-icon">✅</div>
+  <div class="done-title">제출 완료</div>
+  <div class="done-score" id="d-score">0</div>
+  <div style="text-align:center;display:flex;flex-direction:column;gap:3px;">
+    <div style="font-size:17px;font-weight:700;" id="d-name">-</div>
+    <div style="font-size:11px;color:var(--mu);" id="d-meta">-</div>
+  </div>
+  <div class="done-btns">
+    <button class="bigbtn p" onclick="next()">다음 선수</button>
+    <button class="bigbtn s" onclick="show('s-setup')">처음으로</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script>
+let athlete=null, cnt=0, judgeId='', roomCode='';
+let peer=null, dataConn=null, peerReady=false;
+let touchActive=false, qrStream=null, qrIv=null;
+
+// ── BroadcastChannel: 같은 PC → 즉시 반영 (지연 0ms) ──
+const bc=new BroadcastChannel('mop-overlay');
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));document.getElementById(id).classList.add('show');}
+function pad(n){return String(n).padStart(2,'0');}
+
+// ── PeerJS 초기화 ──
+function initPeer(room){
+  roomCode=room;
+  if(peer){try{peer.destroy();}catch(e){}}
+  const myId=`mop-${room}-judge-${parseInt(document.getElementById('inp-court').value)||1}-${Date.now()%10000}`;
+  peer=new Peer(myId,{
+    host:'0.peerjs.com',port:443,path:'/',secure:true,debug:0,
+    config:{iceServers:[
+      {urls:'stun:stun.l.google.com:19302'},
+      {urls:'stun:stun1.l.google.com:19302'}
+    ]}
+  });
+  peer.on('open',()=>{peerReady=true;connectToViewer();});
+  peer.on('error',e=>{if(e.type!=='peer-unavailable')console.log('err',e.type);});
+}
+
+function connectToViewer(){
+  if(!peer||!peerReady)return;
+  const vid=`mop-${roomCode}-viewer`;
+  try{
+    if(dataConn){try{dataConn.close();}catch(e){}}
+    dataConn=peer.connect(vid,{reliable:false}); // reliable:false → UDP-like 저지연!
+    dataConn.on('open',()=>{
+      setOvStatus(true);
+      if(athlete) dataConn.send({type:'info',court:athlete.court,name:athlete.name,team:athlete.team});
+    });
+    dataConn.on('close',()=>{setOvStatus(false);setTimeout(connectToViewer,2000);});
+    dataConn.on('error',()=>{setOvStatus(false);setTimeout(connectToViewer,2000);});
+  }catch(e){setTimeout(connectToViewer,2000);}
+}
+
+function setOvStatus(ok){
+  const pill=document.getElementById('ov-pill');
+  const txt=document.getElementById('ov-txt');
+  const dot=document.getElementById('chip-dot');
+  const ctxt=document.getElementById('chip-txt');
+  if(ok){
+    if(pill){pill.className='ov-pill live';txt.textContent='뷰어 연결됨';}
+    dot.className='cdot live';ctxt.textContent='뷰어 연결됨 ✓';
+  }else{
+    if(pill){pill.className='ov-pill wait';txt.textContent='뷰어 대기';}
+    dot.className='cdot con';ctxt.textContent='뷰어 연결 중...';
+  }
+}
+
+// ── 핵심: 점수 전송 (2중 경로, 지연 최소화) ──
+function sendScore(type){
+  if(!athlete)return;
+  const data={type,court:athlete.court,name:athlete.name,team:athlete.team,
+              event:athlete.event,judge:judgeId,count:cnt,ts:Date.now()};
+
+  // ① BroadcastChannel: 같은 PC면 즉시 0ms (최우선)
+  bc.postMessage({type:type==='submit'?'submit':'score', data});
+
+  // ② PeerJS: 다른 기기면 WebRTC DataChannel (reliable:false → 저지연)
+  if(dataConn&&dataConn.open){
+    try{dataConn.send(data);}catch(e){}
+  }
+}
+
+// ── 입력 ──
+function enterManual(){
+  const room=document.getElementById('inp-room').value.trim().toUpperCase();
+  judgeId=document.getElementById('inp-judge').value.trim()||'심판';
+  const court=parseInt(document.getElementById('inp-court').value)||1;
+  const name=document.getElementById('inp-name').value.trim();
+  const team=document.getElementById('inp-team').value.trim();
+  const ev=document.getElementById('inp-event').value;
+  if(!room){alert('방 코드 필요');return;}
+  if(!name){alert('선수 이름 필요');return;}
+  if(court<1||court>24){alert('코트 1~24');return;}
+  setAthlete({entryNo:`${ev}-${pad(court)}`,name,team,category:'',event:ev,heat:1,court},room);
+}
+
+function setAthlete(a,room){
+  athlete=a;
+  document.getElementById('c-entry').textContent=a.entryNo||'-';
+  document.getElementById('c-name').textContent=a.name||'-';
+  document.getElementById('c-team').textContent=a.team||'-';
+  document.getElementById('c-ev').textContent=a.event||'-';
+  document.getElementById('c-court').textContent=`C-${pad(a.court||0)}`;
+  document.getElementById('c-judge').textContent=judgeId||'-';
+  initPeer(room||roomCode);
+  show('s-confirm');
+}
+
+// QR
+async function startQR(){
+  show('s-qr');
+  try{qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});document.getElementById('qr-video').srcObject=qrStream;qrIv=setInterval(scanFrame,200);}
+  catch(e){alert('카메라 오류');show('s-setup');}
+}
+function stopQR(){if(qrIv){clearInterval(qrIv);qrIv=null;}if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null;}show('s-setup');}
+function scanFrame(){
+  const v=document.getElementById('qr-video'),c=document.getElementById('qr-canvas');
+  if(v.readyState!==v.HAVE_ENOUGH_DATA)return;
+  c.width=v.videoWidth;c.height=v.videoHeight;
+  const ctx=c.getContext('2d');ctx.drawImage(v,0,0);
+  const code=jsQR(ctx.getImageData(0,0,c.width,c.height).data,c.width,c.height);
+  if(code){
+    stopQR();
+    try{const d=JSON.parse(code.data);judgeId=document.getElementById('inp-judge').value.trim()||'심판';setAthlete(d,document.getElementById('inp-room').value.trim().toUpperCase()||'MOP');}
+    catch(e){alert('QR 오류');startQR();}
+  }
+}
+
+// 카운팅 시작
+function startCounting(){
+  if(!athlete)return;
+  cnt=0;
+  document.getElementById('big-cnt').textContent='0';
+  document.getElementById('h-name').textContent=athlete.name||'-';
+  document.getElementById('h-meta').textContent=`${athlete.team||''} ${athlete.category?'· '+athlete.category:''}`;
+  document.getElementById('h-ev').textContent=athlete.event||'-';
+  document.getElementById('h-ct').textContent=`C-${pad(athlete.court||0)}`;
+  show('s-count');
+  sendScore('info');
+}
+
+// 터치 (지연 없는 즉시 반응)
+function onTS(e){
+  e.preventDefault();
+  if(touchActive)return;
+  touchActive=true;
+  const tz=document.getElementById('tz');
+  tz.classList.add('pressed');
+  const t=e.touches[0],r=tz.getBoundingClientRect();
+  mkRipple(t.clientX-r.left,t.clientY-r.top);
+  addCnt();
+}
+function onTE(e){e.preventDefault();touchActive=false;document.getElementById('tz').classList.remove('pressed');}
+function onMD(e){
+  if(e.pointerType==='touch')return;
+  document.getElementById('tz').classList.add('pressed');
+  setTimeout(()=>document.getElementById('tz').classList.remove('pressed'),100);
+  mkRipple(e.offsetX,e.offsetY);
+  addCnt();
+}
+function mkRipple(x,y){
+  const r=document.createElement('div');r.className='ripple';
+  r.style.cssText=`left:${x}px;top:${y}px;width:60px;height:60px;margin:-30px 0 0 -30px;`;
+  document.getElementById('tz').appendChild(r);
+  setTimeout(()=>r.remove(),500);
+}
+
+function addCnt(){
+  cnt++;
+  // 즉시 로컬 표시
+  const el=document.getElementById('big-cnt');
+  el.textContent=cnt;
+  el.classList.add('flash');
+  setTimeout(()=>el.classList.remove('flash'),100);
+  if(navigator.vibrate)navigator.vibrate(20);
+  // 전송 (비동기, 표시와 별개로 처리)
+  sendScore('score');
+}
+
+function adjCnt(d){
+  cnt=Math.max(0,cnt+d);
+  document.getElementById('big-cnt').textContent=cnt;
+  sendScore('score');
+}
+
+function resetCnt(){
+  if(!confirm('카운트를 0으로 초기화할까요?'))return;
+  cnt=0;
+  document.getElementById('big-cnt').textContent='0';
+  sendScore('score');
+}
+
+function submitScore(){
+  if(!confirm(`${athlete.name} — ${cnt}회\n제출하시겠습니까?`))return;
+  sendScore('submit');
+  document.getElementById('d-score').textContent=cnt;
+  document.getElementById('d-name').textContent=athlete.name;
+  document.getElementById('d-meta').textContent=`${athlete.event} · C-${pad(athlete.court||0)} · ${athlete.team}`;
+  show('s-done');
+}
+function next(){cnt=0;athlete=null;show('s-setup');}
+</script>
+</body>
+</html>

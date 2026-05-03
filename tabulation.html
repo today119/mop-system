@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>집계 오버레이 — 모두의 플레이</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;600;700;900&display=swap');
+:root{
+  --bg:#080810;--sur:#11111c;--sur2:#18182a;--sur3:#1e1e30;
+  --ac:#00e5ff;--ac2:#ff3d71;--gn:#00ff88;--yw:#ffd60a;--pu:#c77dff;
+  --tx:#eeeef5;--mu:#4a4a6a;--mu2:#6a6a8a;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;min-height:100vh;}
+
+/* ══ 상단 네비 ══ */
+#nav{
+  display:flex;align-items:center;gap:0;
+  background:var(--sur);border-bottom:1px solid #1a1a2a;
+  padding:0 20px;height:52px;flex-shrink:0;
+}
+.nav-logo{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--ac);letter-spacing:.1em;margin-right:24px;}
+.nav-tabs{display:flex;height:100%;}
+.ntab{
+  padding:0 18px;display:flex;align-items:center;font-size:13px;font-weight:600;
+  color:var(--mu2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;
+  white-space:nowrap;
+}
+.ntab.active{color:var(--ac);border-bottom-color:var(--ac);}
+.ntab:hover{color:var(--tx);}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.sync-status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mu2);}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--gn);}
+.sync-dot.off{background:var(--ac2);animation:bl .8s ease-in-out infinite alternate;}
+@keyframes bl{from{opacity:1;}to{opacity:.3;}}
+.server-inp{background:#0d0d18;border:1px solid #252535;border-radius:8px;padding:5px 10px;font-size:11px;color:var(--tx);outline:none;width:180px;}
+.btn{padding:7px 16px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .12s;}
+.btn.primary{background:var(--ac);color:#000;}
+.btn.secondary{background:var(--sur2);color:var(--ac);border:1px solid var(--ac);}
+.btn.sm{padding:5px 12px;font-size:11px;}
+.btn:active{transform:scale(.96);}
+
+/* ══ 화면 ══ */
+.view{display:none;height:calc(100vh - 52px);}
+.view.show{display:flex;flex-direction:column;}
+
+/* ════════════════════════
+   1. 집계 관리 화면
+════════════════════════ */
+#v-admin{flex-direction:column;overflow:hidden;}
+.admin-toolbar{
+  display:flex;align-items:center;gap:10px;padding:12px 20px;
+  background:var(--sur);border-bottom:1px solid #1a1a2a;flex-shrink:0;
+}
+.heat-selector{display:flex;align-items:center;gap:8px;font-size:13px;}
+.heat-selector label{color:var(--mu2);}
+.heat-selector select{background:#0d0d18;border:1px solid #252535;border-radius:8px;padding:6px 10px;color:var(--tx);font-size:13px;outline:none;}
+.stat-chip{background:var(--sur2);border:1px solid #252535;border-radius:8px;padding:5px 12px;font-size:11px;color:var(--mu2);}
+.stat-chip span{color:var(--tx);font-weight:700;}
+
+.admin-body{flex:1;overflow-y:auto;padding:16px 20px;}
+.score-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+
+.court-card{
+  background:var(--sur2);border:1.5px solid #1e1e30;border-radius:14px;
+  padding:14px;transition:border-color .2s;position:relative;overflow:hidden;
+}
+.court-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--mu);}
+.court-card.updated::before{background:var(--ac);animation:flash-line .6s ease-out forwards;}
+@keyframes flash-line{0%{background:var(--ac);}100%{background:var(--mu);}}
+.court-card.submitted::before{background:var(--gn);}
+.cc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.cc-court{font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--ac);letter-spacing:.08em;}
+.cc-event{font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--yw);}
+.cc-name{font-size:14px;font-weight:700;margin-bottom:2px;}
+.cc-team{font-size:10px;color:var(--mu2);margin-bottom:10px;}
+.cc-score-row{display:flex;align-items:center;gap:8px;}
+.cc-score{font-family:'Bebas Neue',sans-serif;font-size:44px;line-height:1;color:var(--tx);flex:1;transition:color .2s;}
+.cc-score.new{color:var(--ac);}
+.cc-adj{display:flex;flex-direction:column;gap:4px;}
+.adj-s{width:28px;height:24px;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Bebas Neue',sans-serif;}
+.adj-s.plus{background:#1a2a1a;color:var(--gn);}
+.adj-s.minus{background:#2a1a1a;color:var(--ac2);}
+.cc-status{font-size:10px;color:var(--mu);margin-top:8px;display:flex;justify-content:space-between;}
+.badge-sub{background:rgba(0,255,136,.1);color:var(--gn);border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700;}
+
+/* ════════════════════════
+   2. 그리드 오버레이
+════════════════════════ */
+#v-grid{position:relative;}
+.overlay-controls{
+  display:flex;align-items:center;gap:10px;padding:10px 16px;
+  background:var(--sur);border-bottom:1px solid #1a1a2a;flex-shrink:0;
+}
+.layout-btn{
+  padding:6px 14px;border:1.5px solid #252535;border-radius:8px;font-size:12px;
+  font-weight:700;cursor:pointer;background:var(--sur2);color:var(--mu2);transition:all .12s;
+}
+.layout-btn.active{border-color:var(--ac);color:var(--ac);}
+.chroma-btn{padding:6px 14px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:none;}
+.chroma-off{background:var(--sur2);color:var(--mu2);border:1.5px solid #252535;}
+.chroma-on{background:#00ff00;color:#000;}
+
+#grid-display{flex:1;overflow:hidden;background:var(--bg);}
+#grid-display.chroma{background:#00ff00!important;}
+
+.score-grid-display{
+  display:grid;height:100%;padding:6px;gap:6px;
+}
+.layout-4x2 .score-grid-display{grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);}
+.layout-6x2 .score-grid-display{grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(2,1fr);}
+.layout-3x3 .score-grid-display{grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);}
+.layout-4x3 .score-grid-display{grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);}
+
+.score-cell{
+  background:rgba(0,0,0,.82);border:1px solid rgba(255,255,255,.06);
+  border-radius:10px;padding:10px;display:flex;flex-direction:column;
+  justify-content:space-between;overflow:hidden;position:relative;
+  backdrop-filter:blur(8px);
+}
+.score-cell::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--mu);border-radius:2px;
+}
+.score-cell.live::after{background:var(--ac);}
+.score-cell.done::after{background:var(--gn);}
+.sc-top{display:flex;justify-content:space-between;align-items:flex-start;}
+.sc-court{font-family:'Bebas Neue',sans-serif;font-size:11px;color:rgba(0,229,255,.6);letter-spacing:.1em;}
+.sc-event{font-family:'Bebas Neue',sans-serif;font-size:11px;color:rgba(255,214,10,.7);}
+.sc-name{font-size:clamp(11px,1.8vw,16px);font-weight:700;line-height:1.2;margin-top:4px;}
+.sc-team{font-size:clamp(9px,1.2vw,11px);color:rgba(255,255,255,.4);margin-top:1px;}
+.sc-num{
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(32px,5.5vw,58px);
+  line-height:1;color:var(--tx);text-align:right;
+  transition:transform .07s,color .15s;
+}
+.sc-num.pop{transform:scale(1.15);color:var(--ac);}
+.sc-bot{display:flex;justify-content:space-between;align-items:flex-end;}
+.sc-rank{font-family:'Bebas Neue',sans-serif;font-size:clamp(10px,1.5vw,14px);color:var(--yw);}
+
+/* ════════════════════════
+   3. 순위표 오버레이
+════════════════════════ */
+#v-rank{flex-direction:column;}
+#rank-display{flex:1;background:var(--bg);overflow:hidden;padding:20px;}
+#rank-display.chroma{background:#00ff00!important;}
+
+.rank-table-wrap{
+  max-width:900px;margin:0 auto;
+  background:rgba(0,0,0,.7);border-radius:16px;overflow:hidden;
+  border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px);
+}
+.rank-header{
+  background:linear-gradient(135deg,rgba(0,229,255,.15),rgba(0,229,255,.05));
+  padding:14px 24px;display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid rgba(0,229,255,.2);
+}
+.rh-title{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--ac);letter-spacing:.1em;}
+.rh-event{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--yw);margin-left:auto;}
+.rank-row{
+  display:grid;grid-template-columns:50px 1fr 140px 80px 80px;
+  align-items:center;padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.04);
+  transition:background .2s;
+}
+.rank-row:hover{background:rgba(255,255,255,.02);}
+.rank-row.gold .rk-pos{color:#ffd700;}
+.rank-row.silver .rk-pos{color:#c0c0c0;}
+.rank-row.bronze .rk-pos{color:#cd7f32;}
+.rank-row.updated{animation:rowhl .8s ease-out;}
+@keyframes rowhl{0%{background:rgba(0,229,255,.12);}100%{background:transparent;}}
+.rk-pos{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--mu2);}
+.rk-info{display:flex;flex-direction:column;gap:2px;}
+.rk-name{font-size:15px;font-weight:700;}
+.rk-team{font-size:11px;color:var(--mu2);}
+.rk-court{font-family:'Bebas Neue',sans-serif;font-size:12px;color:var(--ac);letter-spacing:.06em;}
+.rk-score{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--tx);text-align:right;transition:color .2s;}
+.rk-score.new{color:var(--ac);}
+.rk-status{text-align:center;}
+.dot-live{width:8px;height:8px;border-radius:50%;background:var(--ac);display:inline-block;animation:pulse 1s ease-in-out infinite alternate;}
+.dot-done{width:8px;height:8px;border-radius:50%;background:var(--gn);display:inline-block;}
+@keyframes pulse{from{opacity:.4;}to{opacity:1;}}
+
+/* ════════════════════════
+   4. 로워서드 오버레이
+════════════════════════ */
+#v-lower{flex-direction:column;}
+#lower-display{
+  flex:1;background:#00ff00;display:flex;
+  align-items:flex-end;justify-content:flex-start;padding:40px;
+}
+#lower-display.dark-bg{background:var(--bg);}
+
+.lower-third{
+  background:linear-gradient(135deg,rgba(0,8,20,.94),rgba(0,20,40,.9));
+  border-left:4px solid var(--ac);border-radius:0 12px 12px 0;
+  padding:16px 24px 16px 20px;min-width:420px;max-width:600px;
+  backdrop-filter:blur(12px);
+  animation:slideIn .4s cubic-bezier(.175,.885,.32,1.275);
+}
+@keyframes slideIn{from{transform:translateX(-40px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+.lt-entry{font-size:10px;color:var(--ac);letter-spacing:.15em;text-transform:uppercase;margin-bottom:3px;}
+.lt-name{font-size:28px;font-weight:900;line-height:1.1;}
+.lt-team{font-size:13px;color:rgba(255,255,255,.55);margin-bottom:10px;}
+.lt-row{display:flex;gap:20px;align-items:flex-end;}
+.lt-score-wrap{display:flex;flex-direction:column;gap:0;}
+.lt-score-label{font-size:9px;color:var(--mu2);letter-spacing:.1em;text-transform:uppercase;}
+.lt-score{font-family:'Bebas Neue',sans-serif;font-size:52px;color:var(--tx);line-height:1;transition:color .15s;}
+.lt-score.flash{color:var(--ac);}
+.lt-meta{display:flex;flex-direction:column;gap:4px;padding-bottom:6px;}
+.lt-event{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--yw);}
+.lt-heat{font-size:11px;color:var(--mu2);}
+.lt-court{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--ac);}
+
+.lower-controls{
+  padding:12px 20px;background:var(--sur);border-top:1px solid #1a1a2a;
+  display:flex;align-items:center;gap:12px;flex-shrink:0;
+}
+.court-quick{display:flex;gap:6px;flex-wrap:wrap;}
+.cq-btn{padding:5px 12px;border:1px solid #252535;border-radius:6px;font-size:11px;background:var(--sur2);color:var(--mu2);cursor:pointer;transition:all .12s;}
+.cq-btn.active{border-color:var(--ac);color:var(--ac);}
+
+/* ════════════════════════
+   결과 내보내기
+════════════════════════ */
+#v-export{overflow-y:auto;padding:24px;}
+.export-inner{max-width:900px;margin:0 auto;}
+.ex-title{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--ac);letter-spacing:.08em;margin-bottom:16px;}
+.result-table{width:100%;border-collapse:collapse;font-size:13px;background:var(--sur2);border-radius:12px;overflow:hidden;}
+.result-table th{padding:10px 14px;text-align:left;background:rgba(0,229,255,.08);color:var(--ac);font-size:11px;letter-spacing:.08em;}
+.result-table td{padding:10px 14px;border-bottom:1px solid #1a1a2a;}
+.result-table tr:last-child td{border:none;}
+
+/* 스크롤바 */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:#0d0d18;}
+::-webkit-scrollbar-thumb{background:#252535;border-radius:2px;}
+</style>
+</head>
+<body>
+
+<!-- 네비 -->
+<div id="nav">
+  <div class="nav-logo">모두의 플레이</div>
+  <div class="nav-tabs">
+    <div class="ntab active" onclick="switchView('admin')">📋 집계 관리</div>
+    <div class="ntab" onclick="switchView('grid')">⬛ 그리드 오버레이</div>
+    <div class="ntab" onclick="switchView('rank')">🏆 순위표 오버레이</div>
+    <div class="ntab" onclick="switchView('lower')">📺 로워서드</div>
+    <div class="ntab" onclick="switchView('export')">📤 결과 내보내기</div>
+  </div>
+  <div class="nav-right">
+    <div class="sync-status">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-txt">연결 대기</span>
+    </div>
+    <input class="server-inp" id="srv-inp" placeholder="http://서버:3000" type="text">
+    <button class="btn primary btn-sm" onclick="connect()">연결</button>
+    <button class="btn secondary btn-sm" onclick="loadDemo()">데모</button>
+  </div>
+</div>
+
+<!-- ① 집계 관리 -->
+<div class="view show" id="v-admin">
+  <div class="admin-toolbar">
+    <div class="heat-selector">
+      <label>히트</label>
+      <select id="heat-sel" onchange="filterHeat()">
+        <option value="all">전체</option>
+        <option value="1">1히트</option><option value="2">2히트</option>
+        <option value="3">3히트</option><option value="4">4히트</option>
+      </select>
+    </div>
+    <div class="heat-selector">
+      <label>종목</label>
+      <select id="event-sel" onchange="filterHeat()">
+        <option value="all">전체</option>
+        <option value="SRSS">SRSS — 30초 빨리뛰기</option><option value="SRSE">SRSE — 3분 빨리뛰기</option><option value="SRTU">SRTU — 3중 뛰기</option>
+      </select>
+    </div>
+    <div class="stat-chip">진행중 <span id="stat-live">0</span></div>
+    <div class="stat-chip">제출완료 <span id="stat-done">0</span></div>
+    <div class="stat-chip">총 <span id="stat-total">0</span>명</div>
+    <div style="margin-left:auto;display:flex;gap:8px;">
+      <button class="btn secondary btn-sm" onclick="exportCSV()">CSV 내보내기</button>
+      <button class="btn primary btn-sm" onclick="refreshData()">↻ 새로고침</button>
+    </div>
+  </div>
+  <div class="admin-body">
+    <div class="score-grid" id="score-grid"></div>
+  </div>
+</div>
+
+<!-- ② 그리드 오버레이 -->
+<div class="view" id="v-grid">
+  <div class="overlay-controls">
+    <span style="font-size:12px;color:var(--mu2);">레이아웃</span>
+    <button class="layout-btn active" onclick="setLayout('4x2',this)">4×2</button>
+    <button class="layout-btn" onclick="setLayout('6x2',this)">6×2</button>
+    <button class="layout-btn" onclick="setLayout('3x3',this)">3×3</button>
+    <button class="layout-btn" onclick="setLayout('4x3',this)">4×3</button>
+    <div style="width:1px;height:20px;background:#252535;margin:0 4px;"></div>
+    <button class="chroma-btn chroma-off" id="chroma-btn" onclick="toggleChroma()">🟢 크로마키 OFF</button>
+    <div style="margin-left:auto;font-size:11px;color:var(--mu2);">OBS 윈도우 캡처로 이 화면을 캡처하세요</div>
+  </div>
+  <div id="grid-display" class="layout-4x2">
+    <div class="score-grid-display" id="grid-cells"></div>
+  </div>
+</div>
+
+<!-- ③ 순위표 오버레이 -->
+<div class="view" id="v-rank">
+  <div class="overlay-controls">
+    <span style="font-size:12px;color:var(--mu2);">이벤트 필터</span>
+    <select id="rank-event-sel" onchange="renderRank()" style="background:#0d0d18;border:1px solid #252535;border-radius:8px;padding:5px 10px;color:var(--tx);font-size:12px;outline:none;">
+      <option value="all">전체</option>
+      <option value="SRSS">SRSS — 30초 빨리뛰기</option><option value="SRSE">SRSE — 3분 빨리뛰기</option><option value="SRTU">SRTU — 3중 뛰기</option>
+    </select>
+    <button class="chroma-btn chroma-off" id="rank-chroma-btn" onclick="toggleRankChroma()">🟢 크로마키 OFF</button>
+    <div style="margin-left:auto;font-size:11px;color:var(--mu2);">상위 10명 실시간 순위</div>
+  </div>
+  <div id="rank-display">
+    <div class="rank-table-wrap">
+      <div class="rank-header">
+        <div class="rh-title">실시간 순위</div>
+        <div class="rh-event" id="rank-event-label">SRSS</div>
+      </div>
+      <div id="rank-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ④ 로워서드 -->
+<div class="view" id="v-lower">
+  <div id="lower-display">
+    <div class="lower-third" id="lower-third">
+      <div class="lt-entry" id="lt-entry">SRSS-001</div>
+      <div class="lt-name" id="lt-name">선수 이름</div>
+      <div class="lt-team" id="lt-team">소속팀</div>
+      <div class="lt-row">
+        <div class="lt-score-wrap">
+          <div class="lt-score-label">COUNT</div>
+          <div class="lt-score" id="lt-score">0</div>
+        </div>
+        <div class="lt-meta">
+          <div class="lt-event" id="lt-event">SRSS</div>
+          <div class="lt-court" id="lt-court">C-01</div>
+          <div class="lt-heat" id="lt-heat">1히트</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="lower-controls">
+    <span style="font-size:12px;color:var(--mu2);">코트 선택</span>
+    <div class="court-quick" id="court-quick"></div>
+    <div style="margin-left:auto;display:flex;gap:8px;">
+      <button class="chroma-btn chroma-off" id="lower-chroma-btn" onclick="toggleLowerChroma()">배경 전환</button>
+    </div>
+  </div>
+</div>
+
+<!-- ⑤ 결과 내보내기 -->
+<div class="view" id="v-export">
+  <div class="export-inner">
+    <div class="ex-title">결과 내보내기</div>
+    <div style="display:flex;gap:10px;margin-bottom:20px;">
+      <button class="btn primary" onclick="exportCSV()">📥 CSV 다운로드</button>
+      <button class="btn secondary" onclick="window.print()">🖨️ 인쇄</button>
+    </div>
+    <table class="result-table" id="result-table">
+      <thead><tr><th>순위</th><th>엔트리</th><th>이름</th><th>소속</th><th>참가부</th><th>종목</th><th>히트</th><th>코트</th><th>기록</th><th>심판</th></tr></thead>
+      <tbody id="result-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ══ 데이터 ══
+let records = {}; // courtNo → {entryNo,name,team,category,event,heat,court,count,judge,submitted,ts}
+let pollInterval = null;
+let serverUrl = '';
+let chromaActive = false;
+let rankChromaActive = false;
+let lowerChromaActive = true;
+let currentLayout = '4x2';
+let selectedLowerCourt = null;
+
+// ══ 뷰 전환 ══
+function switchView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('show'));
+  document.getElementById('v-'+v).classList.add('show');
+  document.querySelectorAll('.ntab').forEach((el,i)=>{
+    el.classList.toggle('active',['admin','grid','rank','lower','export'][i]===v);
+  });
+  if(v==='grid') renderGrid();
+  if(v==='rank') renderRank();
+  if(v==='export') renderExport();
+  if(v==='lower') renderLowerButtons();
+}
+
+// ══ 서버 연결 ══
+function connect(){
+  serverUrl = document.getElementById('srv-inp').value.trim().replace(/\/$/,'');
+  if(!serverUrl) return;
+  clearInterval(pollInterval);
+  pollInterval = setInterval(fetchData, 1500);
+  fetchData();
+}
+
+async function fetchData(){
+  try{
+    const r = await fetch(`${serverUrl}/api/tabulation/scores`);
+    if(!r.ok) throw new Error();
+    const data = await r.json();
+    data.forEach(d=>updateRecord(d));
+    setSyncStatus(true);
+  }catch(e){ setSyncStatus(false); }
+}
+
+async function refreshData(){ if(serverUrl) await fetchData(); }
+
+function setSyncStatus(ok){
+  document.getElementById('sync-dot').className='sync-dot'+(ok?'':' off');
+  document.getElementById('sync-txt').textContent=ok?'연결됨':'오프라인';
+}
+
+// ══ 레코드 업데이트 ══
+function updateRecord(d){
+  const key = d.court || d.entryNo;
+  const prev = records[key];
+  const isNew = !prev || prev.count !== d.count;
+  records[key] = {...(prev||{}), ...d, _new: isNew};
+  refreshAdminCard(key);
+  refreshGridCell(key);
+  if(isNew) refreshRankRow();
+  if(selectedLowerCourt == key) renderLower(d);
+}
+
+function adminAdjust(key, delta){
+  if(!records[key]) return;
+  records[key].count = Math.max(0, (records[key].count||0)+delta);
+  refreshAdminCard(key);
+  refreshGridCell(key);
+  // 서버 동기화
+  if(serverUrl){
+    fetch(`${serverUrl}/api/judge/realtime`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(records[key])}).catch(()=>{});
+  }
+}
+
+// ══ 집계 카드 렌더링 ══
+function renderAdmin(){
+  const grid = document.getElementById('score-grid');
+  const heat = document.getElementById('heat-sel').value;
+  const evF  = document.getElementById('event-sel').value;
+  const filtered = Object.values(records).filter(r=>{
+    if(heat!=='all' && String(r.heat)!==heat) return false;
+    if(evF!=='all'  && r.event!==evF) return false;
+    return true;
+  }).sort((a,b)=>(a.court||0)-(b.court||0));
+
+  grid.innerHTML = '';
+  filtered.forEach(r=>{
+    const card = document.createElement('div');
+    card.className=`court-card${r.submitted?' submitted':''}`;
+    card.id=`cc-${r.court}`;
+    card.innerHTML=`
+      <div class="cc-header">
+        <span class="cc-court">C-${String(r.court||0).padStart(2,'0')}</span>
+        <span class="cc-event">${r.event||'-'}</span>
+      </div>
+      <div class="cc-name">${r.name||'(미배정)'}</div>
+      <div class="cc-team">${r.team||''} ${r.category?'· '+r.category:''}</div>
+      <div class="cc-score-row">
+        <div class="cc-score" id="cs-${r.court}">${r.count||0}</div>
+        <div class="cc-adj">
+          <button class="adj-s plus" onclick="adminAdjust(${r.court},+1)">+</button>
+          <button class="adj-s minus" onclick="adminAdjust(${r.court},-1)">−</button>
+        </div>
+      </div>
+      <div class="cc-status">
+        <span>${r.judge?'심판: '+r.judge:''}</span>
+        ${r.submitted?'<span class="badge-sub">제출완료</span>':''}
+      </div>`;
+    grid.appendChild(card);
+  });
+  updateStats();
+}
+
+function refreshAdminCard(key){
+  const r = records[key];
+  if(!r) return;
+  const el = document.getElementById(`cs-${r.court}`);
+  if(el){
+    el.textContent = r.count||0;
+    el.classList.add('new');
+    setTimeout(()=>el.classList.remove('new'),300);
+    const card = document.getElementById(`cc-${r.court}`);
+    if(card){ card.classList.add('updated'); setTimeout(()=>card.classList.remove('updated'),600); }
+  } else {
+    renderAdmin(); // 카드 새로 생성
+  }
+}
+
+function filterHeat(){ renderAdmin(); }
+
+function updateStats(){
+  const all = Object.values(records);
+  document.getElementById('stat-total').textContent = all.length;
+  document.getElementById('stat-live').textContent  = all.filter(r=>!r.submitted&&r.count>0).length;
+  document.getElementById('stat-done').textContent  = all.filter(r=>r.submitted).length;
+}
+
+// ══ 그리드 오버레이 ══
+function renderGrid(){
+  const container = document.getElementById('grid-cells');
+  const sorted = Object.values(records).sort((a,b)=>(a.court||99)-(b.court||99));
+  container.innerHTML = '';
+  sorted.forEach(r=>{
+    const cell = document.createElement('div');
+    cell.className=`score-cell${r.submitted?' done':r.count>0?' live':''}`;
+    cell.id=`gc-${r.court}`;
+    cell.innerHTML=`
+      <div class="sc-top">
+        <div>
+          <div class="sc-name">${r.name||'(대기중)'}</div>
+          <div class="sc-team">${r.team||''}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="sc-court">C-${String(r.court||0).padStart(2,'0')}</div>
+          <div class="sc-event">${r.event||'-'}</div>
+        </div>
+      </div>
+      <div class="sc-num" id="gn-${r.court}">${r.count||0}</div>
+      <div class="sc-bot">
+        <div class="sc-rank" id="gr-${r.court}">${getRank(r)}</div>
+      </div>`;
+    container.appendChild(cell);
+  });
+}
+
+function refreshGridCell(key){
+  const r = records[key];
+  if(!r) return;
+  const el = document.getElementById(`gn-${r.court}`);
+  if(el){
+    el.textContent = r.count||0;
+    el.classList.add('pop');
+    setTimeout(()=>el.classList.remove('pop'),120);
+    const rk = document.getElementById(`gr-${r.court}`);
+    if(rk) rk.textContent = getRank(r);
+  } else renderGrid();
+}
+
+function getRank(r){
+  if(!r.event) return '';
+  const sorted = Object.values(records)
+    .filter(x=>x.event===r.event&&x.submitted)
+    .sort((a,b)=>(b.count||0)-(a.count||0));
+  const idx = sorted.findIndex(x=>x.court===r.court);
+  if(idx<0) return '';
+  const medals = ['🥇','🥈','🥉'];
+  return medals[idx]||(idx+1+'위');
+}
+
+function setLayout(l, btn){
+  currentLayout = l;
+  document.querySelectorAll('.layout-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const d = document.getElementById('grid-display');
+  d.className = d.className.replace(/layout-\S+/,'') + ` layout-${l}`;
+  renderGrid();
+}
+
+function toggleChroma(){
+  chromaActive = !chromaActive;
+  const d = document.getElementById('grid-display');
+  const b = document.getElementById('chroma-btn');
+  d.classList.toggle('chroma', chromaActive);
+  b.textContent = chromaActive ? '🟢 크로마키 ON' : '🟢 크로마키 OFF';
+  b.className = 'chroma-btn ' + (chromaActive?'chroma-on':'chroma-off');
+}
+
+// ══ 순위표 ══
+function renderRank(){
+  const evF = document.getElementById('rank-event-sel').value;
+  document.getElementById('rank-event-label').textContent = evF==='all'?'전체':evF;
+  const sorted = Object.values(records)
+    .filter(r=>evF==='all'||r.event===evF)
+    .sort((a,b)=>(b.count||0)-(a.count||0))
+    .slice(0,12);
+  const body = document.getElementById('rank-body');
+  body.innerHTML = sorted.map((r,i)=>`
+    <div class="rank-row ${i===0?'gold':i===1?'silver':i===2?'bronze':''}" id="rr-${r.court}">
+      <div class="rk-pos">${i+1}</div>
+      <div class="rk-info">
+        <div class="rk-name">${r.name||'-'}</div>
+        <div class="rk-team">${r.team||''} ${r.category?'· '+r.category:''}</div>
+      </div>
+      <div class="rk-court">C-${String(r.court||0).padStart(2,'0')} · ${r.event||'-'}</div>
+      <div class="rk-score" id="rs-${r.court}">${r.count||0}</div>
+      <div class="rk-status">
+        ${r.submitted?'<div class="dot-done"></div>':'<div class="dot-live"></div>'}
+      </div>
+    </div>`).join('');
+}
+
+function refreshRankRow(){ if(document.getElementById('v-rank').classList.contains('show')) renderRank(); }
+
+function toggleRankChroma(){
+  rankChromaActive=!rankChromaActive;
+  document.getElementById('rank-display').classList.toggle('chroma',rankChromaActive);
+  const b=document.getElementById('rank-chroma-btn');
+  b.textContent=rankChromaActive?'🟢 크로마키 ON':'🟢 크로마키 OFF';
+  b.className='chroma-btn '+(rankChromaActive?'chroma-on':'chroma-off');
+}
+
+// ══ 로워서드 ══
+function renderLowerButtons(){
+  const wrap = document.getElementById('court-quick');
+  const sorted = Object.values(records).sort((a,b)=>(a.court||99)-(b.court||99));
+  wrap.innerHTML = sorted.map(r=>`
+    <div class="cq-btn${selectedLowerCourt==r.court?' active':''}"
+         onclick="selectLowerCourt(${r.court})">
+      C-${String(r.court||0).padStart(2,'0')}
+    </div>`).join('');
+}
+function selectLowerCourt(court){
+  selectedLowerCourt = court;
+  renderLower(records[court]);
+  renderLowerButtons();
+}
+function renderLower(r){
+  if(!r) return;
+  document.getElementById('lt-entry').textContent = r.entryNo||'-';
+  document.getElementById('lt-name').textContent  = r.name||'-';
+  document.getElementById('lt-team').textContent  = r.team||'';
+  document.getElementById('lt-score').textContent = r.count||0;
+  document.getElementById('lt-event').textContent = r.event||'-';
+  document.getElementById('lt-court').textContent = `C-${String(r.court||0).padStart(2,'0')}`;
+  document.getElementById('lt-heat').textContent  = r.heat?`${r.heat}히트`:'';
+  const sc = document.getElementById('lt-score');
+  sc.classList.add('flash');
+  setTimeout(()=>sc.classList.remove('flash'),200);
+}
+function toggleLowerChroma(){
+  lowerChromaActive=!lowerChromaActive;
+  document.getElementById('lower-display').classList.toggle('dark-bg',!lowerChromaActive);
+}
+
+// ══ 결과 내보내기 ══
+function renderExport(){
+  const sorted = Object.values(records).sort((a,b)=>(b.count||0)-(a.count||0));
+  const body = document.getElementById('result-tbody');
+  body.innerHTML = sorted.map((r,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td>${r.entryNo||'-'}</td>
+      <td><strong>${r.name||'-'}</strong></td>
+      <td>${r.team||'-'}</td>
+      <td>${r.category||'-'}</td>
+      <td>${r.event||'-'}</td>
+      <td>${r.heat||'-'}</td>
+      <td>C-${String(r.court||0).padStart(2,'0')}</td>
+      <td><strong>${r.count||0}</strong></td>
+      <td>${r.judge||'-'}</td>
+    </tr>`).join('');
+}
+
+function exportCSV(){
+  const rows=[['순위','엔트리','이름','소속','참가부','종목','히트','코트','기록','심판']];
+  Object.values(records).sort((a,b)=>(b.count||0)-(a.count||0)).forEach((r,i)=>{
+    rows.push([i+1,r.entryNo||'',r.name||'',r.team||'',r.category||'',r.event||'',r.heat||'',`C-${String(r.court||0).padStart(2,'0')}`,r.count||0,r.judge||'']);
+  });
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download=`결과_${new Date().toLocaleDateString()}.csv`;a.click();
+}
+
+// ══ WebSocket (실시간) ══
+function connectWS(){
+  if(!serverUrl) return;
+  const wsUrl = serverUrl.replace('http','ws')+'/ws/tabulation';
+  try{
+    const ws = new WebSocket(wsUrl);
+    ws.onmessage = e=>{
+      try{
+        const d=JSON.parse(e.data);
+        if(d.type==='score') updateRecord(d.data);
+        if(d.type==='bulk') d.data.forEach(updateRecord);
+      }catch(err){}
+    };
+    ws.onopen=()=>setSyncStatus(true);
+    ws.onclose=()=>{ setSyncStatus(false); setTimeout(connectWS,3000); };
+  }catch(e){}
+}
+
+// ══ 데모 데이터 ══
+function loadDemo(){
+  const names=['김철수','이영희','박지수','최민수','홍길동','김민재','이수진','박현우','조영준','윤서연','한지민','오준혁','신유리','강동원','임나영','정해인'];
+  const teams=['인천영종고','서울체고','부산고','대구체고','광주고','수원고','인천고','대전고'];
+  const events=['SRSS','SRSS','SRSS','SRSE','SRTU'];
+  const cats=['중등남자','중등여자','고등남자','고등여자'];
+  records={};
+  for(let i=1;i<=16;i++){
+    const ev=events[Math.floor(Math.random()*events.length)];
+    records[i]={
+      entryNo:`${ev}-${String(i).padStart(3,'0')}`,
+      name:names[i-1]||`선수${i}`,
+      team:teams[Math.floor(Math.random()*teams.length)],
+      category:cats[Math.floor(Math.random()*cats.length)],
+      event:ev,heat:Math.ceil(i/8),court:i,
+      count:0,judge:`심판${Math.ceil(i/4)}`,submitted:false
+    };
+  }
+  renderAdmin();
+  // 데모 애니메이션
+  let t=0;
+  const demo=setInterval(()=>{
+    t++;
+    const courts=Object.keys(records);
+    const key=parseInt(courts[Math.floor(Math.random()*courts.length)]);
+    if(records[key]){
+      records[key].count=(records[key].count||0)+1;
+      records[key]._new=true;
+      refreshAdminCard(key);
+      refreshGridCell(key);
+      if(document.getElementById('v-rank').classList.contains('show')) renderRank();
+      if(selectedLowerCourt==key) renderLower(records[key]);
+    }
+    if(t>200) clearInterval(demo);
+  },200);
+  setSyncStatus(true, '데모');
+  document.getElementById('sync-txt').textContent='데모 모드';
+  // 버튼 초기화
+  renderLowerButtons();
+}
+function setSyncStatus(ok, label){
+  document.getElementById('sync-dot').className='sync-dot'+(ok?'':' off');
+  document.getElementById('sync-txt').textContent=label||(ok?'연결됨':'오프라인');
+}
+
+// ══ 심판 앱에서 실시간 수신 (SSE) ══
+function connectSSE(){
+  if(!serverUrl) return;
+  const es = new EventSource(`${serverUrl}/api/tabulation/stream`);
+  es.onmessage = e=>{
+    try{ updateRecord(JSON.parse(e.data)); }catch(err){}
+  };
+  es.onerror=()=>setSyncStatus(false);
+  es.onopen=()=>setSyncStatus(true);
+}
+</script>
+</body>
+</html>

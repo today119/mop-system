@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR 생성 — 모두의 플레이</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@400;600;700&display=swap');
+:root{--bg:#0d0d14;--sur:#13131e;--sur2:#1a1a2a;--ac:#00e5ff;--ac2:#ff3d71;--gn:#00ff88;--yw:#ffd60a;--tx:#eeeef5;--mu:#4a4a6a;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;min-height:100vh;padding:24px 20px;}
+h1{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--ac);letter-spacing:.08em;margin-bottom:4px;}
+.sub{font-size:12px;color:var(--mu);margin-bottom:24px;}
+
+/* 탭 */
+.tabs{display:flex;gap:8px;margin-bottom:20px;}
+.tab{padding:8px 18px;border:1.5px solid #252535;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--mu);background:var(--sur2);transition:all .15s;}
+.tab.active{border-color:var(--ac);color:var(--ac);background:rgba(0,229,255,.08);}
+
+/* 섹션 */
+.section{background:var(--sur2);border:1.5px solid #252535;border-radius:16px;padding:20px;margin-bottom:16px;}
+.sec-title{font-size:12px;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;font-weight:600;}
+
+/* 입력 */
+.row{display:flex;gap:10px;margin-bottom:10px;align-items:flex-end;flex-wrap:wrap;}
+.field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:120px;}
+.field label{font-size:11px;color:var(--mu);}
+.inp{background:#0d0d18;border:1.5px solid #252535;border-radius:8px;padding:9px 12px;font-size:13px;color:var(--tx);font-family:'Noto Sans KR',sans-serif;outline:none;width:100%;}
+.inp:focus{border-color:var(--ac);}
+select.inp{cursor:pointer;}
+
+/* 버튼 */
+.btn{padding:10px 20px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;}
+.btn.primary{background:var(--ac);color:#000;}
+.btn.secondary{background:var(--sur2);color:var(--ac);border:1.5px solid var(--ac);}
+.btn.danger{background:rgba(255,61,113,.15);color:var(--ac2);border:1.5px solid rgba(255,61,113,.3);}
+.btn:active{transform:scale(.96);}
+.btn.sm{padding:6px 14px;font-size:11px;}
+
+/* 선수 테이블 */
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{padding:8px 10px;text-align:left;color:var(--mu);font-weight:600;border-bottom:1px solid #1e1e30;letter-spacing:.05em;font-size:11px;}
+td{padding:8px 10px;border-bottom:1px solid #14142a;vertical-align:middle;}
+tr:hover td{background:rgba(255,255,255,.02);}
+.badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:.05em;}
+.badge-ev{background:rgba(255,214,10,.15);color:var(--yw);}
+.badge-court{background:rgba(0,229,255,.12);color:var(--ac);}
+
+/* QR 그리드 */
+#qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;margin-top:16px;}
+.qr-card{background:white;border-radius:12px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px;break-inside:avoid;}
+.qr-card canvas{border-radius:4px;}
+.qr-info{text-align:center;display:flex;flex-direction:column;gap:2px;}
+.qr-name{font-size:12px;font-weight:700;color:#111;}
+.qr-entry{font-size:10px;color:#666;}
+.qr-ev{font-size:11px;font-weight:700;color:#0070a8;font-family:'Bebas Neue',sans-serif;letter-spacing:.05em;}
+
+/* CSV 힌트 */
+.csv-hint{background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--ac);line-height:1.7;margin-bottom:12px;}
+.csv-hint code{background:rgba(0,229,255,.12);padding:1px 6px;border-radius:4px;font-family:monospace;}
+
+@media print{
+  body{background:white;padding:0;}
+  .no-print{display:none!important;}
+  #qr-grid{display:grid;grid-template-columns:repeat(4,1fr);}
+}
+</style>
+</head>
+<body>
+
+<div class="no-print">
+  <h1>QR 코드 생성</h1>
+  <div class="sub">모두의 플레이 · 선수 배번 QR 생성 도구</div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('manual')">직접 입력</div>
+    <div class="tab" onclick="switchTab('csv')">CSV 업로드</div>
+    <div class="tab" onclick="switchTab('generate')">QR 생성</div>
+  </div>
+
+  <!-- 직접 입력 탭 -->
+  <div id="tab-manual">
+    <div class="section">
+      <div class="sec-title">선수 추가</div>
+      <div class="row">
+        <div class="field"><label>종목</label>
+          <select class="inp" id="i-event">
+            <option value="SRSS">SRSS — 30초 빨리뛰기</option>
+            <option value="SRSE">SRSE — 3분 빨리뛰기</option>
+            <option value="SRTU">SRTU — 3중 뛰기</option>
+            <option value="SRDR">SRDR - 이중뛰기</option>
+            <option value="SRIF">SRIF - 자유형</option>
+          </select>
+        </div>
+        <div class="field"><label>참가부</label>
+          <select class="inp" id="i-cat">
+            <option>초등 남자</option><option>초등 여자</option>
+            <option>중등 남자</option><option>중등 여자</option>
+            <option>고등 남자</option><option>고등 여자</option>
+            <option>일반 남자</option><option>일반 여자</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label>선수명</label><input class="inp" id="i-name" placeholder="이름" type="text"></div>
+        <div class="field"><label>소속</label><input class="inp" id="i-team" placeholder="학교/팀" type="text"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>히트</label><input class="inp" id="i-heat" type="number" placeholder="1" min="1"></div>
+        <div class="field"><label>코트</label><input class="inp" id="i-court" type="number" placeholder="1" min="1" max="24"></div>
+        <div class="field" style="justify-content:flex-end;">
+          <button class="btn primary" onclick="addAthlete()">+ 추가</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div class="sec-title" style="margin:0">선수 명단 (<span id="athlete-count">0</span>명)</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn sm secondary" onclick="exportCSV()">CSV 내보내기</button>
+          <button class="btn sm danger" onclick="clearAll()">전체 삭제</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>엔트리</th><th>종목</th><th>이름</th><th>소속</th><th>참가부</th><th>히트</th><th>코트</th><th></th></tr></thead>
+          <tbody id="athlete-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV 업로드 탭 -->
+  <div id="tab-csv" style="display:none;">
+    <div class="section">
+      <div class="sec-title">CSV 파일 업로드</div>
+      <div class="csv-hint">
+        CSV 형식: <code>종목,참가부,이름,소속,히트,코트</code><br>
+        예시: <code>SRSS,중등남자,김철수,인천영종고,3,7</code><br>
+        첫 번째 줄은 헤더로 건너뜁니다.
+      </div>
+      <input type="file" id="csv-file" accept=".csv" onchange="loadCSV(this)" style="display:none;">
+      <div class="row">
+        <button class="btn primary" onclick="document.getElementById('csv-file').click()">📂 CSV 파일 선택</button>
+        <button class="btn secondary" onclick="downloadSample()">샘플 다운로드</button>
+      </div>
+      <div id="csv-result" style="margin-top:12px;font-size:12px;color:var(--gn);"></div>
+    </div>
+  </div>
+
+  <!-- QR 생성 탭 -->
+  <div id="tab-generate" style="display:none;">
+    <div class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div class="sec-title" style="margin:0">QR 코드 생성</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn sm secondary" onclick="generateAll()">전체 생성</button>
+          <button class="btn sm primary" onclick="window.print()">🖨️ 인쇄</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--mu);margin-bottom:12px;">
+        선수 명단에서 각 선수의 QR코드를 생성합니다. 배번 스티커에 인쇄하세요.
+      </div>
+      <div id="qr-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- QR 인쇄용 (no-print 바깥) -->
+<div id="print-area"></div>
+
+<!-- QR 라이브러리 -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+let athletes = JSON.parse(localStorage.getItem('athletes')||'[]');
+let entryCounters = {}; // 종목별 엔트리 번호 카운터
+
+function switchTab(t){
+  ['manual','csv','generate'].forEach(id=>{
+    document.getElementById('tab-'+id).style.display=id===t?'block':'none';
+    document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['manual','csv','generate'][i]===t));
+  });
+  if(t==='generate') generateAll();
+}
+
+function getEntryNo(event){
+  if(!entryCounters[event]) entryCounters[event]=1;
+  return `${event}-${String(entryCounters[event]++).padStart(3,'0')}`;
+}
+
+function addAthlete(){
+  const ev=document.getElementById('i-event').value;
+  const cat=document.getElementById('i-cat').value;
+  const name=document.getElementById('i-name').value.trim();
+  const team=document.getElementById('i-team').value.trim();
+  const heat=parseInt(document.getElementById('i-heat').value)||1;
+  const court=parseInt(document.getElementById('i-court').value)||1;
+  if(!name){alert('이름을 입력하세요');return;}
+  athletes.push({entryNo:getEntryNo(ev),event:ev,category:cat,name,team,heat,court});
+  saveAndRender();
+  document.getElementById('i-name').value='';
+  document.getElementById('i-court').value=parseInt(document.getElementById('i-court').value)+1||2;
+}
+
+function delAthlete(i){athletes.splice(i,1);saveAndRender();}
+function clearAll(){if(confirm('전체 삭제?')){athletes=[];entryCounters={};saveAndRender();}}
+
+function saveAndRender(){
+  localStorage.setItem('athletes',JSON.stringify(athletes));
+  renderTable();
+  document.getElementById('athlete-count').textContent=athletes.length;
+}
+
+function renderTable(){
+  const tb=document.getElementById('athlete-table');
+  tb.innerHTML=athletes.map((a,i)=>`
+    <tr>
+      <td><span class="badge badge-court">${a.entryNo}</span></td>
+      <td><span class="badge badge-ev">${a.event}</span></td>
+      <td><strong>${a.name}</strong></td>
+      <td>${a.team}</td>
+      <td>${a.category}</td>
+      <td>${a.heat}히트</td>
+      <td>C-${String(a.court).padStart(2,'0')}</td>
+      <td><button class="btn sm danger" onclick="delAthlete(${i})">삭제</button></td>
+    </tr>`).join('');
+}
+
+function generateAll(){
+  const grid=document.getElementById('qr-grid');
+  grid.innerHTML='';
+  athletes.forEach(a=>{
+    const card=document.createElement('div');
+    card.className='qr-card';
+    const qrDiv=document.createElement('div');
+    new QRCode(qrDiv,{
+      text:JSON.stringify(a),
+      width:120,height:120,
+      colorDark:'#000000',colorLight:'#ffffff',
+      correctLevel:QRCode.CorrectLevel.M
+    });
+    const info=document.createElement('div');
+    info.className='qr-info';
+    info.innerHTML=`
+      <div class="qr-entry">${a.entryNo}</div>
+      <div class="qr-name">${a.name}</div>
+      <div style="font-size:10px;color:#555;">${a.team}</div>
+      <div class="qr-ev">${a.event} · C-${String(a.court).padStart(2,'0')}</div>
+      <div style="font-size:9px;color:#888;">${a.category} · ${a.heat}히트</div>
+    `;
+    card.appendChild(qrDiv);
+    card.appendChild(info);
+    grid.appendChild(card);
+  });
+}
+
+function exportCSV(){
+  const rows=[['종목','참가부','이름','소속','히트','코트','엔트리번호']];
+  athletes.forEach(a=>rows.push([a.event,a.category,a.name,a.team,a.heat,a.court,a.entryNo]));
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='선수명단.csv';a.click();
+}
+
+function downloadSample(){
+  const sample='종목,참가부,이름,소속,히트,코트\nSRSS,중등남자,김철수,인천영종고,1,1\nSRSS,중등남자,이영희,서울중학교,1,2\nSRSE,고등여자,박지수,부산고등학교,1,1';
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(sample);
+  a.download='sample.csv';a.click();
+}
+
+function loadCSV(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const lines=e.target.result.split('\n').slice(1).filter(l=>l.trim());
+    let added=0;
+    lines.forEach(line=>{
+      const [event,category,name,team,heat,court]=line.split(',').map(s=>s.trim().replace(/"/g,''));
+      if(name&&event){
+        athletes.push({entryNo:getEntryNo(event),event,category:category||'',name,team:team||'',heat:parseInt(heat)||1,court:parseInt(court)||1});
+        added++;
+      }
+    });
+    saveAndRender();
+    document.getElementById('csv-result').textContent=`✅ ${added}명 추가됨`;
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+// 초기 렌더
+saveAndRender();
+// 기존 엔트리 번호 복원
+athletes.forEach(a=>{
+  const ev=a.event;
+  if(!entryCounters[ev])entryCounters[ev]=1;
+  const n=parseInt(a.entryNo.split('-')[1]);
+  if(n>=entryCounters[ev])entryCounters[ev]=n+1;
+});
+</script>
+</body>
+</html>

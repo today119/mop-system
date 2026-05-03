@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오버레이 — 모두의 플레이</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;700;900&display=swap');
+
+:root{
+  --ac:#00e5ff;--ac2:#ff3d71;--gn:#00ff88;--yw:#ffd60a;--pu:#c77dff;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{
+  width:1920px;height:1080px;
+  background:transparent;
+  overflow:hidden;
+  font-family:'Noto Sans KR',sans-serif;
+}
+
+/* ══ 컨트롤 패널 ══ */
+#ctrl{
+  position:fixed;top:0;left:0;right:0;z-index:9999;
+  background:rgba(5,5,16,.96);padding:8px 16px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  border-bottom:1px solid rgba(0,229,255,.15);
+  font-size:12px;
+}
+.ctrl-logo{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--ac);letter-spacing:.1em;}
+.sep{width:1px;height:20px;background:#252535;flex-shrink:0;}
+.cb{padding:5px 12px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .12s;white-space:nowrap;}
+.cb.on{background:var(--ac);color:#000;}
+.cb.off{background:#1a1a2a;color:#555;border:1px solid #252535;}
+.cb:active{transform:scale(.95);}
+.layout-sel{background:#1a1a2a;border:1px solid #252535;border-radius:6px;padding:4px 8px;color:#aaa;font-size:11px;outline:none;}
+
+/* 오버레이 연결 상태 */
+.ov-conn{display:flex;align-items:center;gap:6px;font-size:11px;}
+.ov-conn-dot{width:7px;height:7px;border-radius:50%;background:#333;}
+.ov-conn-dot.live{background:var(--gn);animation:pp 1s ease-in-out infinite alternate;}
+@keyframes pp{from{opacity:.5;}to{opacity:1;}}
+.ov-conn-txt{color:#555;}
+.ov-conn-txt.live{color:var(--gn);}
+
+/* 코트 버튼 */
+.court-list{display:flex;gap:4px;flex-wrap:wrap;}
+.cqbtn{padding:3px 8px;border:1px solid #252535;border-radius:4px;font-size:10px;background:#1a1a2a;color:#555;cursor:pointer;transition:all .1s;}
+.cqbtn.sel{border-color:var(--ac);color:var(--ac);}
+.ctrl-hint{font-size:10px;color:#333;margin-left:auto;}
+
+body.obs-mode #ctrl{display:none;}
+body.obs-mode{background:transparent!important;}
+
+/* ══ 레이어 ══ */
+.layer{position:absolute;top:0;left:0;width:1920px;height:1080px;pointer-events:none;opacity:0;transition:opacity .35s;}
+.layer.visible{opacity:1;}
+
+/* ════════════════════
+   LAYER: 그리드
+════════════════════ */
+#layer-grid{
+  padding:46px 14px 14px;
+  display:grid;gap:10px;
+}
+body.obs-mode #layer-grid{padding:12px;}
+#layer-grid.l4x2{grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);}
+#layer-grid.l6x2{grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(2,1fr);}
+#layer-grid.l3x3{grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);}
+#layer-grid.l4x3{grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);}
+
+.gc{
+  background:linear-gradient(145deg,rgba(4,8,22,.88),rgba(0,12,28,.82));
+  border:1px solid rgba(255,255,255,.06);border-radius:12px;
+  padding:12px 14px 10px;display:flex;flex-direction:column;justify-content:space-between;
+  backdrop-filter:blur(12px);position:relative;overflow:hidden;
+  box-shadow:0 4px 24px rgba(0,0,0,.5);transition:border-color .3s;
+}
+.gc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:rgba(255,255,255,.06);transition:background .4s;}
+.gc.live::before{background:var(--ac);box-shadow:0 0 8px var(--ac);}
+.gc.done::before{background:var(--gn);}
+.gc-top{display:flex;justify-content:space-between;align-items:flex-start;}
+.gc-left{display:flex;flex-direction:column;gap:1px;overflow:hidden;}
+.gc-name{font-size:clamp(11px,1.35vw,15px);font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gc-team{font-size:clamp(8px,.85vw,10px);color:rgba(255,255,255,.35);margin-top:1px;}
+.gc-right{text-align:right;flex-shrink:0;}
+.gc-court{font-family:'Bebas Neue',sans-serif;font-size:clamp(9px,.9vw,12px);color:rgba(0,229,255,.6);letter-spacing:.1em;}
+.gc-event{font-family:'Bebas Neue',sans-serif;font-size:clamp(9px,.9vw,12px);color:rgba(255,214,10,.65);}
+.gc-score{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(34px,5.2vw,62px);
+  line-height:1;color:#fff;text-align:right;
+  text-shadow:0 2px 16px rgba(0,0,0,.8);
+  transition:transform .07s,color .14s;
+}
+.gc-score.pop{transform:scale(1.18);color:var(--ac);}
+.gc-bot{display:flex;justify-content:space-between;align-items:flex-end;}
+.gc-rank{font-family:'Bebas Neue',sans-serif;font-size:clamp(9px,1vw,12px);color:var(--yw);}
+
+/* ════════════════════
+   LAYER: 로워서드
+════════════════════ */
+#layer-lower{display:flex;align-items:flex-end;padding:0 0 54px 56px;}
+body.obs-mode #layer-lower{padding:0 0 40px 48px;}
+
+.lower-wrap{display:flex;align-items:stretch;filter:drop-shadow(0 4px 32px rgba(0,0,0,.75));animation:lIn .45s cubic-bezier(.22,1,.36,1);}
+@keyframes lIn{from{transform:translateY(18px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+
+.lower-accent{width:4px;border-radius:2px 0 0 2px;background:linear-gradient(180deg,var(--ac) 0%,var(--pu) 100%);flex-shrink:0;}
+.lower-body{
+  background:linear-gradient(110deg,rgba(2,6,18,.97),rgba(0,16,34,.93));
+  padding:18px 28px 18px 20px;border-radius:0 10px 10px 0;
+  border:1px solid rgba(0,229,255,.12);border-left:none;
+  min-width:480px;max-width:680px;backdrop-filter:blur(16px);
+}
+.lt-row1{display:flex;align-items:baseline;gap:10px;margin-bottom:2px;}
+.lt-entry{font-size:10px;color:var(--ac);letter-spacing:.18em;font-weight:600;opacity:.8;}
+.lt-cat{font-size:10px;color:rgba(255,255,255,.3);}
+.lt-name{font-size:30px;font-weight:900;line-height:1.1;letter-spacing:-.01em;}
+.lt-team{font-size:12px;color:rgba(255,255,255,.42);margin-top:2px;margin-bottom:12px;}
+.lt-stats{display:flex;align-items:flex-end;gap:24px;}
+.lt-score-blk{display:flex;flex-direction:column;}
+.lt-score-lbl{font-size:9px;letter-spacing:.15em;color:rgba(255,255,255,.3);text-transform:uppercase;}
+.lt-score-num{
+  font-family:'Bebas Neue',sans-serif;font-size:66px;line-height:.9;color:#fff;
+  transition:color .14s,transform .08s;text-shadow:0 0 20px rgba(0,229,255,.25);
+}
+.lt-score-num.flash{color:var(--ac);transform:scale(1.07);}
+.lt-div{width:1px;height:50px;background:rgba(255,255,255,.08);}
+.lt-meta-blk{display:flex;flex-direction:column;gap:6px;padding-bottom:4px;}
+.lt-ev{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--yw);letter-spacing:.06em;line-height:1;}
+.lt-sub{display:flex;gap:8px;align-items:center;}
+.lt-court-tag{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--ac);}
+.lt-heat-tag{font-size:10px;color:rgba(255,255,255,.32);}
+
+/* ════════════════════
+   LAYER: 순위표
+════════════════════ */
+#layer-rank{display:flex;align-items:flex-start;justify-content:flex-end;padding:50px 28px 0 0;}
+body.obs-mode #layer-rank{padding:10px 24px 0 0;}
+
+.rank-panel{
+  width:400px;
+  background:linear-gradient(160deg,rgba(2,6,20,.95),rgba(0,10,26,.90));
+  border:1px solid rgba(0,229,255,.12);border-radius:14px;overflow:hidden;
+  backdrop-filter:blur(16px);box-shadow:0 8px 40px rgba(0,0,0,.6);
+}
+.rp-header{padding:12px 18px;background:linear-gradient(90deg,rgba(0,229,255,.1),transparent);border-bottom:1px solid rgba(0,229,255,.1);display:flex;align-items:center;justify-content:space-between;}
+.rp-title{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--ac);letter-spacing:.12em;}
+.rp-ev{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--yw);}
+.rank-item{display:grid;grid-template-columns:36px 1fr 64px;align-items:center;padding:8px 18px;border-bottom:1px solid rgba(255,255,255,.04);}
+.ri-pos{font-family:'Bebas Neue',sans-serif;font-size:20px;color:rgba(255,255,255,.25);text-align:center;}
+.ri-pos.p1{color:#ffd700;font-size:22px;}
+.ri-pos.p2{color:#c0c0c0;}
+.ri-pos.p3{color:#cd7f32;}
+.ri-info{display:flex;flex-direction:column;gap:1px;overflow:hidden;}
+.ri-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ri-team{font-size:9px;color:rgba(255,255,255,.32);}
+.ri-score{font-family:'Bebas Neue',sans-serif;font-size:28px;color:#fff;text-align:right;transition:color .2s,transform .08s;}
+.ri-score.pop{color:var(--ac);transform:scale(1.1);}
+
+/* ════════════════════
+   LAYER: 집중뷰 (선수 1명 빅 카운트)
+════════════════════ */
+#layer-focus{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:linear-gradient(160deg,rgba(0,6,22,.97),rgba(0,18,38,.94));
+}
+.focus-inner{display:flex;flex-direction:column;align-items:center;animation:fIn .5s cubic-bezier(.22,1,.36,1);}
+@keyframes fIn{from{transform:scale(.96);opacity:0;}to{transform:scale(1);opacity:1;}}
+.fc-entry{font-size:12px;letter-spacing:.25em;color:var(--ac);opacity:.65;margin-bottom:6px;}
+.fc-name{font-size:80px;font-weight:900;letter-spacing:-.02em;line-height:1;text-align:center;max-width:1000px;}
+.fc-team{font-size:20px;color:rgba(255,255,255,.38);margin-top:5px;margin-bottom:28px;}
+.fc-score-wrap{position:relative;display:flex;align-items:center;justify-content:center;}
+.fc-ring{position:absolute;width:260px;height:260px;border-radius:50%;border:2px solid rgba(0,229,255,.1);box-shadow:0 0 60px rgba(0,229,255,.07),inset 0 0 60px rgba(0,229,255,.04);}
+.fc-score{font-family:'Bebas Neue',sans-serif;font-size:160px;line-height:1;color:#fff;text-shadow:0 0 40px rgba(0,229,255,.35);transition:transform .07s,color .12s;position:relative;}
+.fc-score.pop{transform:scale(1.12);color:var(--ac);}
+.fc-score-lbl{position:absolute;bottom:-22px;width:100%;text-align:center;font-size:12px;letter-spacing:.2em;color:rgba(255,255,255,.25);}
+.fc-meta{display:flex;gap:28px;margin-top:38px;align-items:center;}
+.fm-item{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.fm-val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--yw);letter-spacing:.06em;}
+.fm-lbl{font-size:9px;letter-spacing:.12em;color:rgba(255,255,255,.28);text-transform:uppercase;}
+.fm-sep{width:1px;height:34px;background:rgba(255,255,255,.08);}
+
+/* ════════════════════
+   LAYER: 티커
+════════════════════ */
+#layer-ticker{display:flex;align-items:flex-end;}
+.ticker-bar{width:1920px;height:44px;background:linear-gradient(90deg,rgba(0,6,18,.95),rgba(0,12,28,.90),rgba(0,6,18,.95));border-top:1px solid rgba(0,229,255,.1);display:flex;align-items:center;overflow:hidden;}
+.ticker-lbl{flex-shrink:0;padding:0 18px;font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--ac);letter-spacing:.12em;border-right:1px solid rgba(0,229,255,.12);white-space:nowrap;}
+.ticker-sw{flex:1;overflow:hidden;}
+.ticker-scroll{display:flex;align-items:center;white-space:nowrap;animation:scroll 22s linear infinite;}
+.ticker-scroll:hover{animation-play-state:paused;}
+@keyframes scroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+.ti{display:inline-flex;align-items:center;gap:7px;padding:0 18px;border-right:1px solid rgba(255,255,255,.05);font-size:12px;}
+.ti-ct{font-family:'Bebas Neue',sans-serif;font-size:10px;color:rgba(0,229,255,.55);}
+.ti-ev{font-family:'Bebas Neue',sans-serif;font-size:10px;color:rgba(255,214,10,.55);}
+.ti-nm{font-weight:600;}
+.ti-sc{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--ac);}
+
+/* ════════════════════
+   LAYER: 알림 팝업
+════════════════════ */
+#layer-notify{pointer-events:none;}
+.npill{
+  position:absolute;top:58px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(90deg,rgba(0,229,255,.14),rgba(0,229,255,.07));
+  border:1px solid rgba(0,229,255,.28);border-radius:28px;
+  padding:8px 22px;display:flex;align-items:center;gap:10px;
+  backdrop-filter:blur(12px);
+  animation:pillIn .3s ease,pillOut .3s ease 2.3s forwards;
+}
+@keyframes pillIn{from{transform:translateX(-50%) translateY(-10px);opacity:0;}to{transform:translateX(-50%) translateY(0);opacity:1;}}
+@keyframes pillOut{to{transform:translateX(-50%) translateY(-10px);opacity:0;}}
+.np-nm{font-size:14px;font-weight:700;}
+.np-sc{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--ac);}
+.np-lbl{font-size:11px;color:rgba(255,255,255,.38);}
+
+/* 연결 상태 레이어 */
+#layer-conn{display:flex;align-items:flex-start;justify-content:flex-start;padding:54px 0 0 20px;}
+body.obs-mode #layer-conn{padding:12px 0 0 16px;}
+.conn-pill{
+  display:flex;align-items:center;gap:7px;
+  background:rgba(0,0,0,.65);border-radius:20px;
+  padding:5px 14px;font-size:11px;
+  border:1px solid rgba(255,255,255,.06);
+  backdrop-filter:blur(8px);
+  transition:all .3s;
+}
+.cp-dot{width:6px;height:6px;border-radius:50%;background:#333;}
+.cp-dot.live{background:var(--gn);animation:pp 1s ease-in-out infinite alternate;}
+.cp-txt{color:rgba(255,255,255,.4);}
+.cp-txt.live{color:rgba(255,255,255,.7);}
+</style>
+</head>
+<body>
+
+<!-- 컨트롤 패널 -->
+<div id="ctrl">
+  <div class="ctrl-logo">OVERLAY</div>
+  <div class="sep"></div>
+  <button class="cb off" id="cb-grid"   onclick="togLayer('grid')">그리드</button>
+  <button class="cb off" id="cb-lower"  onclick="togLayer('lower')">로워서드</button>
+  <button class="cb off" id="cb-rank"   onclick="togLayer('rank')">순위표</button>
+  <button class="cb off" id="cb-focus"  onclick="togLayer('focus')">집중뷰</button>
+  <button class="cb off" id="cb-ticker" onclick="togLayer('ticker')">티커</button>
+  <div class="sep"></div>
+  <select class="layout-sel" onchange="setLayout(this.value)">
+    <option value="l4x2">4×2</option>
+    <option value="l6x2">6×2</option>
+    <option value="l3x3">3×3</option>
+    <option value="l4x3">4×3</option>
+  </select>
+  <div class="sep"></div>
+  <!-- 로워서드/집중뷰 코트 선택 -->
+  <span style="font-size:10px;color:#444;">코트:</span>
+  <div class="court-list" id="court-btns"></div>
+  <div class="sep"></div>
+  <!-- 연결 상태 -->
+  <div class="ov-conn">
+    <div class="ov-conn-dot" id="ov-dot"></div>
+    <span class="ov-conn-txt" id="ov-txt">심판앱 대기중</span>
+  </div>
+  <div class="ctrl-hint">?obs=1 추가 시 컨트롤 숨김 | 1920×1080</div>
+</div>
+
+<!-- 레이어들 -->
+<div class="layer" id="layer-grid"></div>
+
+<div class="layer" id="layer-lower">
+  <div class="lower-wrap">
+    <div class="lower-accent"></div>
+    <div class="lower-body">
+      <div class="lt-row1">
+        <div class="lt-entry" id="lt-entry">-</div>
+        <div class="lt-cat" id="lt-cat"></div>
+      </div>
+      <div class="lt-name" id="lt-name">선수 이름</div>
+      <div class="lt-team" id="lt-team">소속팀</div>
+      <div class="lt-stats">
+        <div class="lt-score-blk">
+          <div class="lt-score-lbl">COUNT</div>
+          <div class="lt-score-num" id="lt-score">0</div>
+        </div>
+        <div class="lt-div"></div>
+        <div class="lt-meta-blk">
+          <div class="lt-ev" id="lt-ev">-</div>
+          <div class="lt-sub">
+            <div class="lt-court-tag" id="lt-court">C-01</div>
+            <div class="lt-heat-tag" id="lt-heat"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="layer" id="layer-rank">
+  <div class="rank-panel">
+    <div class="rp-header">
+      <div class="rp-title">실시간 순위</div>
+      <div class="rp-ev" id="rp-ev">-</div>
+    </div>
+    <div id="rank-list"></div>
+  </div>
+</div>
+
+<div class="layer" id="layer-focus">
+  <div class="focus-inner">
+    <div class="fc-entry" id="fc-entry">-</div>
+    <div class="fc-name" id="fc-name">선수 이름</div>
+    <div class="fc-team" id="fc-team">소속팀</div>
+    <div class="fc-score-wrap">
+      <div class="fc-ring"></div>
+      <div class="fc-score" id="fc-score">0
+        <div class="fc-score-lbl">COUNT</div>
+      </div>
+    </div>
+    <div class="fc-meta">
+      <div class="fm-item"><div class="fm-val" id="fc-ev">-</div><div class="fm-lbl">종목</div></div>
+      <div class="fm-sep"></div>
+      <div class="fm-item"><div class="fm-val" id="fc-court">C-01</div><div class="fm-lbl">코트</div></div>
+      <div class="fm-sep"></div>
+      <div class="fm-item"><div class="fm-val" id="fc-heat">-</div><div class="fm-lbl">히트</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layer" id="layer-ticker">
+  <div class="ticker-bar">
+    <div class="ticker-lbl">🔴 LIVE</div>
+    <div class="ticker-sw">
+      <div class="ticker-scroll" id="ticker-scroll"></div>
+    </div>
+  </div>
+</div>
+
+<div class="layer" id="layer-notify"></div>
+
+<div class="layer visible" id="layer-conn">
+  <div class="conn-pill">
+    <div class="cp-dot" id="cp-dot"></div>
+    <span class="cp-txt" id="cp-txt">심판앱 연결 대기 중...</span>
+  </div>
+</div>
+
+<script>
+// ══ BroadcastChannel ══
+const ch = new BroadcastChannel('mop-overlay');
+let records = {};
+let layerStates = {};
+let selectedCourt = null;
+let notifyTimer = null;
+
+// OBS 모드
+if(location.search.includes('obs=1')) document.body.classList.add('obs-mode');
+
+// ══ 메시지 수신 ══
+ch.onmessage = e => {
+  const {type, data} = e.data;
+
+  if(type === 'ping'){
+    ch.postMessage({type:'pong'});
+    setConnected(true);
+  }
+  if(type === 'pong'){
+    setConnected(true);
+  }
+  if(type === 'athlete'){
+    // 선수 정보 초기 등록
+    records[data.court] = {...(records[data.court]||{}), ...data};
+    renderGridCell(data.court);
+    updateCourtBtns();
+    // 선택된 코트 없으면 자동 선택
+    if(!selectedCourt){ selectedCourt = data.court; updateCourtBtns(); }
+    renderLower(records[data.court]);
+    renderFocus(records[data.court]);
+    setConnected(true);
+  }
+  if(type === 'score'){
+    const prev = records[data.court];
+    const isNew = !prev || prev.count !== data.count;
+    records[data.court] = {...(records[data.court]||{}), ...data};
+    if(isNew){
+      renderGridCell(data.court);
+      if(selectedCourt == data.court){
+        renderLower(data);
+        renderFocus(data);
+      }
+      renderRank();
+      renderTicker();
+      if(data.count > 0) showNotify(data);
+    }
+    setConnected(true);
+  }
+  if(type === 'submit'){
+    records[data.court] = {...(records[data.court]||{}), ...data, submitted:true};
+    renderGridCell(data.court);
+    renderRank();
+  }
+};
+
+// 주기적 ping
+setInterval(()=>{ ch.postMessage({type:'ping'}); }, 2000);
+
+// ══ 연결 상태 ══
+let connTimer = null;
+function setConnected(ok){
+  const dot = document.getElementById('cp-dot');
+  const txt = document.getElementById('cp-txt');
+  const ovDot = document.getElementById('ov-dot');
+  const ovTxt = document.getElementById('ov-txt');
+  if(ok){
+    dot.className='cp-dot live'; txt.textContent='심판앱 연결됨'; txt.className='cp-txt live';
+    ovDot.className='ov-conn-dot live'; ovTxt.textContent='심판앱 연결됨 ✓'; ovTxt.className='ov-conn-txt live';
+  } else {
+    dot.className='cp-dot'; txt.textContent='심판앱 대기중...'; txt.className='cp-txt';
+    ovDot.className='ov-conn-dot'; ovTxt.textContent='심판앱 대기중'; ovTxt.className='ov-conn-txt';
+  }
+  clearTimeout(connTimer);
+  if(ok) connTimer = setTimeout(()=>setConnected(false), 6000);
+}
+
+// ══ 레이어 토글 ══
+function togLayer(name){
+  layerStates[name] = !layerStates[name];
+  document.getElementById('layer-'+name).classList.toggle('visible', layerStates[name]);
+  document.getElementById('cb-'+name).className = 'cb '+(layerStates[name]?'on':'off');
+}
+function showLayer(n){ if(!layerStates[n]) togLayer(n); }
+
+// ══ 그리드 ══
+function renderGrid(){
+  const el = document.getElementById('layer-grid');
+  el.innerHTML = '';
+  Object.values(records).sort((a,b)=>a.court-b.court).forEach(r=>{
+    const gc = document.createElement('div');
+    gc.className=`gc${r.submitted?' done':r.count>0?' live':''}`;
+    gc.id=`gc-${r.court}`;
+    gc.innerHTML=`
+      <div class="gc-top">
+        <div class="gc-left">
+          <div class="gc-name">${r.name||'대기중'}</div>
+          <div class="gc-team">${r.team||''}</div>
+        </div>
+        <div class="gc-right">
+          <div class="gc-court">C-${String(r.court||0).padStart(2,'0')}</div>
+          <div class="gc-event">${r.event||''}</div>
+        </div>
+      </div>
+      <div class="gc-score" id="gs-${r.court}">${r.count||0}</div>
+      <div class="gc-bot">
+        <div class="gc-rank" id="gr-${r.court}">${getRankEmoji(r)}</div>
+      </div>`;
+    el.appendChild(gc);
+  });
+}
+
+function renderGridCell(key){
+  const r = records[key];
+  if(!r) return;
+  if(!document.getElementById(`gc-${r.court}`)){ renderGrid(); return; }
+  const sc = document.getElementById(`gs-${r.court}`);
+  if(sc){
+    sc.textContent = r.count||0;
+    sc.classList.add('pop');
+    setTimeout(()=>sc.classList.remove('pop'),150);
+  }
+  const rk = document.getElementById(`gr-${r.court}`);
+  if(rk) rk.textContent = getRankEmoji(r);
+  const gc = document.getElementById(`gc-${r.court}`);
+  if(gc) gc.className=`gc${r.submitted?' done':r.count>0?' live':''}`;
+}
+
+function getRankEmoji(r){
+  if(!r.submitted) return '';
+  const s = Object.values(records).filter(x=>x.event===r.event&&x.submitted).sort((a,b)=>b.count-a.count);
+  const i = s.findIndex(x=>x.court===r.court);
+  return ['🥇','🥈','🥉'][i] || (i+1+'위');
+}
+
+function setLayout(l){
+  const el = document.getElementById('layer-grid');
+  el.className = 'layer'+(layerStates.grid?' visible':'')+' '+l;
+  renderGrid();
+}
+
+// ══ 로워서드 ══
+function renderLower(r){
+  if(!r) return;
+  document.getElementById('lt-entry').textContent = r.entryNo||'-';
+  document.getElementById('lt-cat').textContent   = r.category||'';
+  document.getElementById('lt-name').textContent  = r.name||'-';
+  document.getElementById('lt-team').textContent  = r.team||'';
+  document.getElementById('lt-ev').textContent    = r.event||'-';
+  document.getElementById('lt-court').textContent = `C-${String(r.court||0).padStart(2,'0')}`;
+  document.getElementById('lt-heat').textContent  = r.heat?`${r.heat}히트`:'';
+  const sc = document.getElementById('lt-score');
+  sc.textContent = r.count||0;
+  sc.classList.add('flash');
+  setTimeout(()=>sc.classList.remove('flash'),180);
+}
+
+// ══ 집중뷰 ══
+function renderFocus(r){
+  if(!r) return;
+  document.getElementById('fc-entry').textContent = r.entryNo||'-';
+  document.getElementById('fc-name').textContent  = r.name||'-';
+  document.getElementById('fc-team').textContent  = r.team||'';
+  document.getElementById('fc-ev').textContent    = r.event||'-';
+  document.getElementById('fc-court').textContent = `C-${String(r.court||0).padStart(2,'0')}`;
+  document.getElementById('fc-heat').textContent  = r.heat?`${r.heat}히트`:'-';
+  const sc = document.getElementById('fc-score');
+  // textNode만 교체 (자식 lbl 유지)
+  sc.childNodes[0].textContent = r.count||0;
+  sc.classList.add('pop');
+  setTimeout(()=>sc.classList.remove('pop'),160);
+}
+
+// ══ 순위 ══
+function renderRank(){
+  const sorted = Object.values(records).sort((a,b)=>(b.count||0)-(a.count||0)).slice(0,8);
+  if(sorted.length){ document.getElementById('rp-ev').textContent = sorted[0].event||'-'; }
+  document.getElementById('rank-list').innerHTML = sorted.map((r,i)=>`
+    <div class="rank-item">
+      <div class="ri-pos ${i===0?'p1':i===1?'p2':i===2?'p3':''}">${i+1}</div>
+      <div class="ri-info">
+        <div class="ri-name">${r.name||'-'}</div>
+        <div class="ri-team">${r.team||''}</div>
+      </div>
+      <div class="ri-score" id="rs-${r.court}">${r.count||0}</div>
+    </div>`).join('');
+}
+
+// ══ 알림 ══
+function showNotify(r){
+  const layer = document.getElementById('layer-notify');
+  const old = layer.querySelector('.npill');
+  if(old) old.remove();
+  const p = document.createElement('div');
+  p.className='npill';
+  p.innerHTML=`<span class="np-nm">${r.name}</span><span class="np-lbl">→</span><span class="np-sc">${r.count}</span><span class="np-lbl">회</span>`;
+  layer.appendChild(p);
+  layer.classList.add('visible');
+  clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(()=>{ p.remove(); },2700);
+}
+
+// ══ 티커 ══
+function renderTicker(){
+  const items = Object.values(records).sort((a,b)=>a.court-b.court).map(r=>`
+    <div class="ti">
+      <span class="ti-ct">C-${String(r.court||0).padStart(2,'0')}</span>
+      <span class="ti-ev">${r.event||''}</span>
+      <span class="ti-nm">${r.name||'-'}</span>
+      <span class="ti-sc">${r.count||0}</span>
+    </div>`).join('');
+  document.getElementById('ticker-scroll').innerHTML = items+items;
+}
+
+// ══ 코트 버튼 ══
+function updateCourtBtns(){
+  const wrap = document.getElementById('court-btns');
+  const sorted = Object.values(records).sort((a,b)=>a.court-b.court);
+  wrap.innerHTML = sorted.map(r=>`
+    <div class="cqbtn${selectedCourt==r.court?' sel':''}" onclick="selectCourt(${r.court})">
+      ${String(r.court).padStart(2,'0')}
+    </div>`).join('');
+}
+
+function selectCourt(c){
+  selectedCourt = c;
+  updateCourtBtns();
+  if(records[c]){ renderLower(records[c]); renderFocus(records[c]); }
+}
+
+// 초기 레이아웃
+document.getElementById('layer-grid').className = 'layer l4x2';
+</script>
+</body>
+</html>

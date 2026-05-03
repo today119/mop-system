@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>중계 뷰어 — 모두의 플레이</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@400;700;900&display=swap');
+:root{--bg:#060610;--ac:#00e5ff;--ac2:#ff3d71;--gn:#00ff88;--yw:#ffd60a;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;background:var(--bg);color:#fff;font-family:'Noto Sans KR',sans-serif;overflow:hidden;}
+
+/* ── 설정 화면 ── */
+#s-setup{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:18px;padding:40px;background:radial-gradient(ellipse at 50% 0%,#1a1a3a,var(--bg) 70%);}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:.3em;color:#3a3a5a;}
+.title{font-family:'Bebas Neue',sans-serif;font-size:44px;color:var(--ac);letter-spacing:.08em;}
+.card{background:#111120;border:1.5px solid #222235;border-radius:18px;padding:26px;display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:11px;color:#5a5a7a;}
+.inp{background:#0a0a18;border:1.5px solid #222235;border-radius:10px;padding:11px 14px;font-size:15px;color:#fff;font-family:'Noto Sans KR',sans-serif;outline:none;width:100%;transition:border-color .2s;}
+.inp:focus{border-color:var(--ac);}
+.frow{display:flex;gap:10px;}
+.bigbtn{flex:1;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;transition:all .15s;}
+.bigbtn.p{background:var(--ac);color:#000;}
+.bigbtn:active{transform:scale(.97);}
+.hint{background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.12);border-radius:10px;padding:12px;font-size:11px;color:#5a5a7a;line-height:1.8;}
+.hint strong{color:var(--ac);}
+
+/* ── 뷰어 화면 ── */
+#s-viewer{display:none;flex-direction:column;height:100vh;}
+
+/* 상단 바 */
+#topbar{display:flex;align-items:center;gap:7px;padding:0 12px;height:38px;background:rgba(4,4,14,.97);border-bottom:1px solid rgba(0,229,255,.07);flex-shrink:0;}
+.tl{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--ac);letter-spacing:.1em;}
+.tr{font-size:10px;color:#3a3a5a;}.tr span{color:var(--ac);}
+.tsep{width:1px;height:15px;background:#1e1e30;}
+.tlb{padding:3px 8px;border:1px solid #222235;border-radius:5px;font-size:10px;background:#0d0d1e;color:#3a3a5a;cursor:pointer;}
+.tlb.on{border-color:var(--ac);color:var(--ac);}
+.trr{margin-left:auto;display:flex;align-items:center;gap:7px;}
+.ci{font-size:10px;color:#3a3a5a;}.ci span{color:var(--gn);font-family:'Bebas Neue',sans-serif;font-size:13px;}
+.tb{padding:3px 10px;border:none;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
+.tb.p{background:var(--ac);color:#000;}
+.tb.d{background:rgba(255,61,113,.1);color:var(--ac2);border:1px solid rgba(255,61,113,.2);}
+
+/* ── 그리드 ── */
+#grid{flex:1;overflow:hidden;padding:4px;display:grid;gap:4px;background:var(--bg);}
+#grid.g6x2{grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(2,1fr);}
+#grid.g4x3{grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);}
+#grid.g4x2{grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);}
+
+/* ══ 셀 ══ */
+.cell{
+  background:#0a0a1c;
+  border:1.5px solid #14142a;
+  border-radius:8px;
+  position:relative;
+  overflow:hidden;
+  transition:border-color .3s;
+}
+.cell.live{border-color:rgba(0,229,255,.25);}
+.cell video{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:cover;
+  display:block;z-index:0;
+}
+
+/* 상단 코트 바 */
+.ctop{
+  position:absolute;top:0;left:0;right:0;z-index:2;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:5px 8px 16px;
+  background:linear-gradient(180deg,rgba(0,0,0,.72) 0%,transparent 100%);
+  pointer-events:none;
+}
+.ctop-court{font-family:'Bebas Neue',sans-serif;font-size:clamp(9px,1vw,14px);color:rgba(0,229,255,.85);letter-spacing:.08em;}
+.ctop-live{display:flex;align-items:center;gap:3px;font-size:8px;color:rgba(255,255,255,.5);}
+.cdot{width:5px;height:5px;border-radius:50%;}
+.cdot.l{background:var(--gn);animation:pp 1s ease-in-out infinite alternate;}
+.cdot.w{background:rgba(255,255,255,.15);}
+@keyframes pp{from{opacity:.4;}to{opacity:1;}}
+
+/* ══ 하단 오버레이: 투명 그라디언트 ══ */
+.cbot{
+  position:absolute;
+  bottom:0;left:0;right:0;
+  z-index:2;
+  /* 완전 투명 → 하단 살짝 어둡게 */
+  background:linear-gradient(0deg,rgba(0,0,0,.78) 0%,rgba(0,0,0,.4) 50%,transparent 100%);
+  padding:32px 10px 8px;
+  display:flex;
+  flex-direction:row;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:4px;
+  pointer-events:none;
+}
+
+/* 왼쪽: 소속 + 이름 */
+.cbot-left{
+  display:flex;flex-direction:column;gap:0;
+  overflow:hidden;flex:1;
+}
+.cteam{
+  font-size:clamp(7px,.95vw,12px);
+  color:rgba(255,255,255,.65);
+  line-height:1.3;
+  text-shadow:0 1px 4px rgba(0,0,0,.9);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.cname{
+  font-size:clamp(11px,1.65vw,20px);
+  font-weight:900;
+  color:#fff;
+  line-height:1.15;
+  text-shadow:0 1px 8px rgba(0,0,0,.95);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  letter-spacing:-.01em;
+}
+
+/* 오른쪽: 카운트 숫자 */
+.cbot-right{
+  display:flex;align-items:flex-end;
+  flex-shrink:0;
+}
+.cscore{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(28px,5.5vw,68px);
+  line-height:1;
+  color:#fff;
+  letter-spacing:-.02em;
+  text-align:right;
+  text-shadow:
+    0 0 20px rgba(0,229,255,.3),
+    0 2px 12px rgba(0,0,0,.95);
+  transition:color .1s;
+}
+.cscore.counting{color:var(--ac);}
+
+/* 대기 */
+.cwait{
+  position:absolute;inset:0;z-index:1;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px;opacity:.2;
+}
+.cwc{font-family:'Bebas Neue',sans-serif;font-size:clamp(14px,2vw,22px);color:var(--ac);}
+.cws{width:16px;height:16px;border:2px solid #222;border-top-color:var(--ac);border-radius:50%;animation:sp .8s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.cwt{font-size:clamp(8px,.9vw,10px);color:#3a3a5a;}
+
+/* 수동 패널 */
+#mpanel{position:fixed;top:44px;right:8px;background:rgba(3,3,16,.97);border:1px solid rgba(0,229,255,.15);border-radius:12px;padding:12px;display:none;flex-direction:column;gap:5px;z-index:200;max-height:calc(100vh - 56px);overflow-y:auto;min-width:210px;}
+#mpanel.show{display:flex;}
+.mp-title{font-size:10px;color:var(--ac);letter-spacing:.08em;font-weight:600;margin-bottom:3px;}
+.mp-row{display:flex;gap:4px;align-items:center;}
+.mp-ct{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--ac);min-width:34px;}
+.mp-nm{font-size:9px;color:#5a5a7a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mp-inp{background:#0a0a18;border:1px solid #222235;border-radius:5px;padding:3px 5px;font-size:14px;color:#fff;width:54px;font-family:'Bebas Neue',sans-serif;outline:none;text-align:center;}
+.mpb{padding:2px 7px;border:none;border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;}
+.mpb.p{background:rgba(0,255,136,.12);color:var(--gn);border:1px solid rgba(0,255,136,.18);}
+.mpb.m{background:rgba(255,61,113,.1);color:var(--ac2);border:1px solid rgba(255,61,113,.18);}
+
+/* 토스트 */
+#toast{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(0,6,20,.93);border:1px solid rgba(0,229,255,.18);border-radius:20px;padding:6px 16px;font-size:11px;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;z-index:300;}
+#toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- 설정 -->
+<div id="s-setup">
+  <div class="logo">모두의 플레이</div>
+  <div class="title">중계 뷰어</div>
+  <div class="card">
+    <div class="field">
+      <label>📺 방 코드 (카메라·심판앱과 동일)</label>
+      <input class="inp" id="inp-room" type="text" placeholder="예: MOP2024"
+        style="text-transform:uppercase;font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.1em;"
+        oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div class="frow">
+      <div class="field"><label>레이아웃</label>
+        <select class="inp" id="inp-layout">
+          <option value="g6x2">6×2 (12대)</option>
+          <option value="g4x3">4×3 (12대)</option>
+          <option value="g4x2">4×2 (8대)</option>
+        </select>
+      </div>
+      <div class="field"><label>코트 수</label>
+        <select class="inp" id="inp-count">
+          <option value="12">12대</option>
+          <option value="8">8대</option>
+          <option value="6">6대</option>
+        </select>
+      </div>
+    </div>
+    <button class="bigbtn p" onclick="startViewer()">▶ 뷰어 시작</button>
+    <div class="hint">
+      📱 <strong>camera.html</strong> — 방코드 동일 → 영상 송출<br>
+      👆 <strong>judge-app.html</strong> — 방코드 동일 → 점수 전송
+    </div>
+  </div>
+</div>
+
+<!-- 뷰어 -->
+<div id="s-viewer">
+  <div id="topbar">
+    <div class="tl">모두의 플레이</div>
+    <div class="tr">ROOM <span id="tb-room">-</span></div>
+    <div class="tsep"></div>
+    <button class="tlb on" onclick="setLayout('g6x2',this)">6×2</button>
+    <button class="tlb" onclick="setLayout('g4x3',this)">4×3</button>
+    <button class="tlb" onclick="setLayout('g4x2',this)">4×2</button>
+    <div class="tsep"></div>
+    <div class="trr">
+      <div class="ci">연결 <span id="cn">0</span>/<span id="ct">12</span></div>
+      <button class="tb p" onclick="togglePanel()">✏️ 수동</button>
+      <button class="tb p" onclick="toggleFS()">⛶ 전체화면</button>
+      <button class="tb d" onclick="stopViewer()">✕</button>
+    </div>
+  </div>
+  <div id="grid" class="g6x2"></div>
+</div>
+
+<!-- 수동 패널 -->
+<div id="mpanel">
+  <div class="mp-title">수동 점수</div>
+  <div id="mp-rows"></div>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script>
+let peer=null, roomCode='', totalCourts=12, connCount=0;
+let cells={}; // courtNo → {connected,stream,name,team,score,animTimer}
+
+// BroadcastChannel
+const bc=new BroadcastChannel('mop-overlay');
+bc.onmessage=e=>{
+  const {type,data}=e.data;
+  if(!data)return;
+  if(type==='score'||type==='submit') applyScore(data.court,data.count||0,data.name||'',data.team||'');
+  if(type==='athlete') applyMeta(data.court,data.name||'',data.team||'');
+};
+
+function startViewer(){
+  roomCode=document.getElementById('inp-room').value.trim().toUpperCase();
+  const layout=document.getElementById('inp-layout').value;
+  totalCourts=parseInt(document.getElementById('inp-count').value)||12;
+  if(!roomCode){alert('방 코드 필요');return;}
+  document.getElementById('s-setup').style.display='none';
+  document.getElementById('s-viewer').style.display='flex';
+  document.getElementById('tb-room').textContent=roomCode;
+  document.getElementById('ct').textContent=totalCourts;
+  setLayout(layout);
+  buildGrid();
+  buildPanel();
+  initPeer();
+}
+
+function pad(n){return String(n).padStart(2,'0');}
+
+function buildGrid(){
+  const g=document.getElementById('grid');
+  g.innerHTML='';
+  for(let i=1;i<=totalCourts;i++){
+    cells[i]={connected:false,stream:null,name:'',team:'',score:0,animTimer:null,displayScore:0};
+    const c=document.createElement('div');
+    c.className='cell';c.id=`cell-${i}`;
+    c.innerHTML=`
+      <div class="cwait" id="wait-${i}">
+        <div class="cwc">C-${pad(i)}</div>
+        <div class="cws"></div>
+        <div class="cwt">연결 대기</div>
+      </div>
+      <video id="vid-${i}" autoplay playsinline muted></video>
+      <div class="ctop" id="ctop-${i}">
+        <div class="ctop-court">C-${pad(i)}</div>
+        <div class="ctop-live"><div class="cdot w" id="cdot-${i}"></div><span id="clive-${i}">대기</span></div>
+      </div>
+      <div class="cbot">
+        <div class="cbot-left">
+          <div class="cteam" id="cteam-${i}"></div>
+          <div class="cname" id="cname-${i}"></div>
+        </div>
+        <div class="cbot-right">
+          <div class="cscore" id="csc-${i}">0</div>
+        </div>
+      </div>`;
+    g.appendChild(c);
+  }
+}
+
+function buildPanel(){
+  const r=document.getElementById('mp-rows');
+  r.innerHTML='';
+  for(let i=1;i<=totalCourts;i++){
+    const row=document.createElement('div');
+    row.className='mp-row';
+    row.innerHTML=`
+      <span class="mp-ct">C-${pad(i)}</span>
+      <span class="mp-nm" id="mpnm-${i}"></span>
+      <input class="mp-inp" id="mpi-${i}" type="number" value="0" min="0" max="999" onchange="manualSet(${i},+this.value)">
+      <button class="mpb m" onclick="manualAdj(${i},-1)">−</button>
+      <button class="mpb p" onclick="manualAdj(${i},+1)">+</button>`;
+    r.appendChild(row);
+  }
+}
+function manualSet(c,v){applyScore(c,Math.max(0,v),cells[c]?.name||'',cells[c]?.team||'');}
+function manualAdj(c,d){manualSet(c,(cells[c]?.score||0)+d);}
+function togglePanel(){document.getElementById('mpanel').classList.toggle('show');}
+
+function initPeer(){
+  const vid=`mop-${roomCode}-viewer`;
+  if(peer){try{peer.destroy();}catch(e){}}
+  peer=new Peer(vid,{
+    host:'0.peerjs.com',port:443,path:'/',secure:true,debug:0,
+    config:{iceServers:[
+      {urls:'stun:stun.l.google.com:19302'},
+      {urls:'stun:stun1.l.google.com:19302'}
+    ]}
+  });
+  peer.on('open',()=>toast('✅ 뷰어 준비 — 연결 대기 중'));
+
+  peer.on('call',call=>{
+    const m=call.metadata||{};
+    const cn=parseInt(m.court)||0;
+    if(cn<1||cn>totalCourts){call.close();return;}
+    call.answer();
+    call.on('stream',s=>onCamOn(cn,s,m.name||'',m.team||''));
+    call.on('close',()=>onCamOff(cn));
+    call.on('error',()=>onCamOff(cn));
+  });
+
+  peer.on('connection',conn=>{
+    conn.on('data',d=>{
+      const cn=parseInt(d.court)||0;
+      if(cn<1||cn>totalCourts)return;
+      if(d.type==='info') applyMeta(cn,d.name||'',d.team||'');
+      if(d.type==='score'||d.type==='submit') applyScore(cn,d.count||0,d.name||'',d.team||'');
+    });
+  });
+
+  peer.on('error',e=>{if(e.type==='unavailable-id')toast('⚠️ 이미 같은 방코드 뷰어 실행 중!');});
+  peer.on('disconnected',()=>{setTimeout(()=>{if(peer&&!peer.destroyed)peer.reconnect();},1500);});
+}
+
+function onCamOn(cn,stream,name,team){
+  cells[cn].connected=true;cells[cn].stream=stream;
+  if(name)cells[cn].name=name;
+  if(team)cells[cn].team=team;
+  connCount++;document.getElementById('cn').textContent=connCount;
+  const v=document.getElementById(`vid-${cn}`);
+  v.srcObject=stream;v.play().catch(()=>{});
+  document.getElementById(`wait-${cn}`).style.display='none';
+  document.getElementById(`cdot-${cn}`).className='cdot l';
+  document.getElementById(`clive-${cn}`).textContent='LIVE';
+  document.getElementById(`cell-${cn}`).classList.add('live');
+  if(name||team)applyMeta(cn,name,team);
+  toast(`✅ C-${pad(cn)} 연결 (${connCount}/${totalCourts})`);
+}
+function onCamOff(cn){
+  if(!cells[cn]?.connected)return;
+  cells[cn].connected=false;connCount=Math.max(0,connCount-1);
+  document.getElementById('cn').textContent=connCount;
+  const v=document.getElementById(`vid-${cn}`);v.srcObject=null;
+  document.getElementById(`wait-${cn}`).style.display='flex';
+  document.getElementById(`wait-${cn}`).querySelector('.cwt').textContent='재연결 대기';
+  document.getElementById(`cdot-${cn}`).className='cdot w';
+  document.getElementById(`clive-${cn}`).textContent='대기';
+  document.getElementById(`cell-${cn}`).classList.remove('live');
+  toast(`❌ C-${pad(cn)} 끊김`);
+}
+
+// ══ 핵심: 카운트업 애니메이션 ══
+function applyScore(cn,score,name,team){
+  if(!cells[cn])return;
+  const prev=cells[cn].score||0;
+  cells[cn].score=score;
+  if(name)cells[cn].name=name;
+  if(team)cells[cn].team=team;
+
+  const el=document.getElementById(`csc-${cn}`);
+  if(!el)return;
+
+  applyMeta(cn,name,team);
+  const mi=document.getElementById(`mpi-${cn}`);if(mi)mi.value=score;
+  bc.postMessage({type:'score',data:{court:cn,count:score,name:cells[cn].name,team:cells[cn].team}});
+
+  const diff=score-prev;
+
+  // 기존 애니 중단
+  if(cells[cn].animTimer){
+    clearInterval(cells[cn].animTimer);
+    cells[cn].animTimer=null;
+  }
+
+  if(diff>0&&diff<=6){
+    // 1씩 카운트업 (50ms 간격 → 부드럽게)
+    let cur=prev;
+    el.classList.add('counting');
+    cells[cn].animTimer=setInterval(()=>{
+      cur++;
+      el.textContent=cur;
+      if(cur>=score){
+        clearInterval(cells[cn].animTimer);
+        cells[cn].animTimer=null;
+        el.textContent=score;
+        setTimeout(()=>el.classList.remove('counting'),200);
+      }
+    },50);
+  } else if(diff<0){
+    // 감소: 바로 표시
+    el.textContent=score;
+  } else {
+    // 큰 점프(7 이상): 즉시 표시 + 깜빡
+    el.textContent=score;
+    el.classList.add('counting');
+    setTimeout(()=>el.classList.remove('counting'),300);
+  }
+}
+
+function applyMeta(cn,name,team){
+  if(!cells[cn])return;
+  if(name){cells[cn].name=name;const el=document.getElementById(`cname-${cn}`);if(el)el.textContent=name;}
+  if(team){cells[cn].team=team;const el=document.getElementById(`cteam-${cn}`);if(el)el.textContent=team;}
+  const mn=document.getElementById(`mpnm-${cn}`);if(mn)mn.textContent=cells[cn].name||'';
+}
+
+function setLayout(l,btn){
+  document.getElementById('grid').className=l;
+  document.querySelectorAll('.tlb').forEach(b=>b.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+}
+function stopViewer(){
+  if(peer){try{peer.destroy();}catch(e){}peer=null;}
+  cells={};connCount=0;
+  document.getElementById('s-viewer').style.display='none';
+  document.getElementById('s-setup').style.display='flex';
+}
+function toggleFS(){
+  if(!document.fullscreenElement)document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+}
+let tt=null;
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),2500);}
+</script>
+</body>
+</html>
