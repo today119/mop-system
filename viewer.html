@@ -335,7 +335,7 @@ bc.onmessage=e=>{
     applyScore(data.court,data.count||0,data.name||'',data.team||'');
     markDone(data.court);
     submitCount++;
-    // 전체 코트가 제출 완료되면 자동 순위 표시
+    setTimeout(()=>resetCell(data.court),3000);
     if(submitCount>=connCount&&connCount>0){
       setTimeout(()=>showRankNow(),1500);
       submitCount=0;
@@ -465,6 +465,8 @@ function initPeer(){
         applyScore(cn,d.count||0,d.name||'',d.team||'');
         markDone(cn);
         submitCount++;
+        // 3초 후 자동으로 0 초기화
+        setTimeout(()=>resetCell(cn),3000);
         if(submitCount>=connCount&&connCount>0){
           setTimeout(()=>showRankNow(),1500);
           submitCount=0;
@@ -506,6 +508,29 @@ function markDone(cn){
   document.getElementById(`cell-${cn}`)?.classList.add('done');
   const sc=document.getElementById(`csc-${cn}`);
   if(sc)sc.classList.add('done-clr');
+}
+
+// 제출 후 3초 뒤 0으로 리셋 (다음 선수 준비)
+function resetCell(cn){
+  if(!cells[cn])return;
+  cells[cn].score=0;
+  cells[cn].submitted=false;
+  const sc=document.getElementById(`csc-${cn}`);
+  if(sc){
+    sc.classList.remove('done-clr','counting');
+    // 부드럽게 0으로
+    const prev=parseInt(sc.textContent)||0;
+    if(prev>0){
+      let cur=prev;
+      const step=Math.max(15, Math.floor(300/prev));
+      const iv=setInterval(()=>{
+        cur=Math.max(0,cur-1);
+        sc.textContent=cur;
+        if(cur<=0){clearInterval(iv);sc.textContent='0';}
+      },step);
+    }else{sc.textContent='0';}
+  }
+  document.getElementById(`cell-${cn}`)?.classList.remove('done');
 }
 
 // ── 점수 애니메이션 ──
