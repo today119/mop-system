@@ -521,15 +521,22 @@ function applyScore(cn,score,name,team){
   bc.postMessage({type:'score',data:{court:cn,count:score,name:cells[cn].name,team:cells[cn].team}});
   const diff=score-prev;
   if(cells[cn].animTimer){clearInterval(cells[cn].animTimer);cells[cn].animTimer=null;}
-  if(diff>0&&diff<=6){
+  if(diff>0&&diff<=15){
+    // diff에 따라 간격 조절: 1개 차이=80ms, 10개 차이=15ms
+    const interval=Math.max(15, 80-diff*6);
     let cur=prev;el.classList.add('counting');
     cells[cn].animTimer=setInterval(()=>{
       cur++;el.textContent=cur;
-      if(cur>=score){clearInterval(cells[cn].animTimer);cells[cn].animTimer=null;el.textContent=score;setTimeout(()=>el.classList.remove('counting'),200);}
-    },50);
+      if(cur>=score){
+        clearInterval(cells[cn].animTimer);
+        cells[cn].animTimer=null;
+        el.textContent=score;
+        setTimeout(()=>el.classList.remove('counting'),150);
+      }
+    },interval);
   }else{
     el.textContent=score;
-    if(diff!==0){el.classList.add('counting');setTimeout(()=>el.classList.remove('counting'),250);}
+    if(diff!==0){el.classList.add('counting');setTimeout(()=>el.classList.remove('counting'),200);}
   }
 }
 function applyMeta(cn,name,team){
