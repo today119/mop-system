@@ -81,6 +81,17 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-
       <label>🏃 선수 이름 (선택)</label>
       <input class="inp" id="inp-name" type="text" placeholder="선수 이름">
     </div>
+    <div class="field">
+      <label>🌐 PeerJS 서버</label>
+      <select class="inp" id="inp-server" onchange="toggleServerIP()">
+        <option value="public">☁️ 공개 서버 (테스트용)</option>
+        <option value="local">🏠 현장 로컬 서버 (대회 본선)</option>
+      </select>
+    </div>
+    <div class="field" id="local-ip-wrap" style="display:none;">
+      <label>📡 현장 서버 IP</label>
+      <input class="inp" id="inp-server-ip" type="text" placeholder="예: 192.168.1.100" style="font-family:monospace;font-size:14px;">
+    </div>
     <button class="big-btn primary" onclick="startStream()">📡 송출 시작</button>
   </div>
 </div>
@@ -120,6 +131,17 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
 let peer = null;
+
+function toggleServerIP(){
+  const v=document.getElementById('inp-server').value;
+  document.getElementById('local-ip-wrap').style.display=v==='local'?'block':'none';
+}
+function getPeerConfig(){
+  const v=document.getElementById('inp-server')?.value||'public';
+  const ip=document.getElementById('inp-server-ip')?.value.trim()||'';
+  if(v==='local'&&ip) return {host:ip,port:9000,path:'/',secure:false,debug:0};
+  return {host:'0.peerjs.com',port:443,path:'/',secure:true,debug:0};
+}
 let localStream = null;
 let facingMode = 'environment';
 let roomCode = '', courtNo = 1, playerName = '';
@@ -167,9 +189,8 @@ function initPeer(){
   const myId = `mop-${roomCode}-cam-${courtNo}`;
   if(peer){ try{peer.destroy();}catch(e){} }
 
-  peer = new Peer(myId, {
-    host:'0.peerjs.com', port:443, path:'/', secure:true, debug:0
-  });
+  const cfg=getPeerConfig();
+  peer = new Peer(myId, cfg);
 
   peer.on('open', id=>{
     setLoadTxt(`연결됨!\n뷰어에 연결 시도 중...`);

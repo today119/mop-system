@@ -247,6 +247,18 @@ html,body{height:100%;background:var(--bg);color:#fff;font-family:'Noto Sans KR'
         <option value="off">끄기</option>
       </select>
     </div>
+    <div class="field">
+      <label>🌐 PeerJS 서버 선택</label>
+      <select class="inp" id="inp-server" onchange="toggleServerIP()">
+        <option value="public">☁️ 공개 서버 (테스트용)</option>
+        <option value="local">🏠 현장 로컬 서버 (대회 본선)</option>
+      </select>
+    </div>
+    <div class="field" id="local-ip-wrap" style="display:none;">
+      <label>📡 현장 서버 IP</label>
+      <input class="inp" id="inp-server-ip" type="text" placeholder="예: 192.168.1.100" style="font-family:monospace;font-size:14px;">
+      <div style="font-size:10px;color:#5a5a7a;margin-top:3px;">서버 PC에서 cmd → ipconfig → IPv4 주소</div>
+    </div>
     <button class="bigbtn p" onclick="startBroadcast()">🔴 방송 시작</button>
     <div class="hint">
       📱 <strong>camera.html</strong> — 방코드 동일 → 영상 송출<br>
@@ -327,6 +339,20 @@ let tickerVisible=false;
 let submitCount=0; // 제출 완료 카운트 (히트 종료 감지)
 
 const bc=new BroadcastChannel('mop-overlay');
+
+// ── 서버 설정 ──
+function toggleServerIP(){
+  const v=document.getElementById('inp-server').value;
+  document.getElementById('local-ip-wrap').style.display=v==='local'?'block':'none';
+}
+function getPeerConfig(){
+  const v=document.getElementById('inp-server')?.value||'public';
+  const ip=document.getElementById('inp-server-ip')?.value.trim()||'';
+  if(v==='local'&&ip){
+    return {host:ip,port:9000,path:'/',secure:false,debug:0};
+  }
+  return {host:'0.peerjs.com',port:443,path:'/',secure:true,debug:0};
+}
 bc.onmessage=e=>{
   const {type,data}=e.data;
   if(!data)return;

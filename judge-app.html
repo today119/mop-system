@@ -145,6 +145,17 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-
       <div class="cdot" id="chip-dot"></div>
       <span id="chip-txt">방 코드 입력 후 시작하세요</span>
     </div>
+    <div class="field">
+      <label>🌐 PeerJS 서버</label>
+      <select class="inp" id="inp-server" onchange="toggleServerIP()">
+        <option value="public">☁️ 공개 서버 (테스트용)</option>
+        <option value="local">🏠 현장 로컬 서버 (대회 본선)</option>
+      </select>
+    </div>
+    <div class="field" id="local-ip-wrap" style="display:none;">
+      <label>📡 현장 서버 IP</label>
+      <input class="inp" id="inp-server-ip" type="text" placeholder="예: 192.168.1.100" style="font-family:monospace;font-size:14px;">
+    </div>
     <button class="bigbtn p" onclick="enterManual()">✓ 시작하기</button>
     <button class="bigbtn s" onclick="startQR()">📷 QR 스캔</button>
   </div>
@@ -232,6 +243,17 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
 let athlete=null, cnt=0, judgeId='', roomCode='';
+
+function toggleServerIP(){
+  const v=document.getElementById('inp-server').value;
+  document.getElementById('local-ip-wrap').style.display=v==='local'?'block':'none';
+}
+function getPeerConfig(){
+  const v=document.getElementById('inp-server')?.value||'public';
+  const ip=document.getElementById('inp-server-ip')?.value.trim()||'';
+  if(v==='local'&&ip) return {host:ip,port:9000,path:'/',secure:false,debug:0};
+  return {host:'0.peerjs.com',port:443,path:'/',secure:true,debug:0};
+}
 let peer=null, dataConn=null, peerReady=false;
 let touchActive=false, qrStream=null, qrIv=null;
 
@@ -246,8 +268,8 @@ function initPeer(room){
   roomCode=room;
   if(peer){try{peer.destroy();}catch(e){}}
   const myId=`mop-${room}-judge-${parseInt(document.getElementById('inp-court').value)||1}-${Date.now()%10000}`;
-  peer=new Peer(myId,{
-    host:'0.peerjs.com',port:443,path:'/',secure:true,debug:0,
+  const cfg=getPeerConfig();
+  peer=new Peer(myId,{...cfg,
     config:{iceServers:[
       {urls:'stun:stun.l.google.com:19302'},
       {urls:'stun:stun1.l.google.com:19302'}
