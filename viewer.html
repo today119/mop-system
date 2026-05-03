@@ -666,6 +666,25 @@ function toggleFS(){
 let tt=null;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),2500);}
 
+// ── URL 파라미터 자동 시작 ──
+(function(){
+  const p=new URLSearchParams(location.search);
+  const room=p.get('room');
+  if(room){
+    document.getElementById('inp-room').value=room.toUpperCase();
+    if(p.get('layout')) document.getElementById('inp-layout').value=p.get('layout');
+    if(p.get('courts')) document.getElementById('inp-count').value=p.get('courts');
+    if(p.get('mic')) document.getElementById('inp-mic').value=p.get('mic');
+    if(p.has('autostart')||p.has('obs')) {
+      // 컨트롤바 자동 숨김 (OBS 모드)
+      setTimeout(()=>{
+        startBroadcast();
+        if(p.has('obs')) setTimeout(()=>toggleCtrl(),1000);
+      },500);
+    }
+  }
+})();
+
 // 키보드 단축키
 document.addEventListener('keydown',e=>{
   if(e.key==='h'||e.key==='H') toggleCtrl();         // H: 컨트롤 숨기기
